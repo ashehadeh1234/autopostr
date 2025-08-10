@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +10,8 @@ import featureSchedule from "@/assets/feature-schedule.jpg";
 import featurePlatforms from "@/assets/feature-platforms.jpg";
 
 const LandingPage = () => {
+  const navigate = useNavigate();
+  
   const scrollToFeatures = () => {
     document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
   };
@@ -35,8 +38,8 @@ const LandingPage = () => {
           </a>
         </div>
         <div className="flex items-center space-x-3">
-          <Button variant="ghost" size="sm">Sign In</Button>
-          <Button variant="hero" size="sm">Get Started</Button>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/auth")}>Sign In</Button>
+          <Button variant="hero" size="sm" onClick={() => navigate("/auth")}>Get Started</Button>
         </div>
       </nav>
 
@@ -61,7 +64,7 @@ const LandingPage = () => {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button variant="hero" size="lg" className="group">
+              <Button variant="hero" size="lg" className="group" onClick={() => navigate("/auth")}>
                 Get Started Free
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
@@ -275,11 +278,11 @@ const LandingPage = () => {
           <h2 className="text-3xl md:text-4xl font-bold">Ready to automate your social media?</h2>
           <p className="text-xl text-muted-foreground">Join hundreds of local businesses already saving time with AutoPostr</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button variant="hero" size="lg" className="group">
+            <Button variant="hero" size="lg" className="group" onClick={() => navigate("/auth")}>
               Start Free Trial
               <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
-            <Button variant="outline" size="lg">
+            <Button variant="outline" size="lg" onClick={() => navigate("/auth")}>
               Schedule a Demo
             </Button>
           </div>

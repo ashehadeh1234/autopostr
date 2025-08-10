@@ -9,31 +9,51 @@ import LandingPage from "./components/LandingPage";
 import AppLayout from "./components/AppLayout";
 import Chat from "./pages/Chat";
 import Library from "./pages/Library";
+import Auth from "./pages/Auth";
+import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/app" element={<AppLayout />}>
-            <Route index element={<Chat />} />
-            <Route path="chat" element={<Chat />} />
-            <Route path="library" element={<Library />} />
-            <Route path="connections" element={<Index />} />
-            <Route path="schedule" element={<Index />} />
-            <Route path="analytics" element={<Index />} />
-            <Route path="settings" element={<Index />} />
-          </Route>
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route 
+              path="/auth" 
+              element={
+                <ProtectedRoute requireAuth={false}>
+                  <Auth />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/app" 
+              element={
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Chat />} />
+              <Route path="chat" element={<Chat />} />
+              <Route path="library" element={<Library />} />
+              <Route path="connections" element={<Index />} />
+              <Route path="schedule" element={<Index />} />
+              <Route path="analytics" element={<Index />} />
+              <Route path="settings" element={<Index />} />
+            </Route>
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
