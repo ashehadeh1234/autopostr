@@ -10,6 +10,7 @@ import AppLayout from "./components/AppLayout";
 import Chat from "./pages/Chat";
 import Library from "./pages/Library";
 import Auth from "./pages/Auth";
+import Connections from "./pages/Connections";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -43,7 +44,7 @@ const App = () => (
               <Route index element={<Chat />} />
               <Route path="chat" element={<Chat />} />
               <Route path="library" element={<Library />} />
-              <Route path="connections" element={<Index />} />
+              <Route path="connections" element={<Connections />} />
               <Route path="schedule" element={<Index />} />
               <Route path="analytics" element={<Index />} />
               <Route path="settings" element={<Index />} />
