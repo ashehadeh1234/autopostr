@@ -1,1 +1,62 @@
 project_id = "wpobzmfjkxffnpddisrc"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+
+[db.pooler]
+enabled = false
+port = 54329
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[realtime]
+enabled = true
+port = 54323
+ip_version = "ipv4"
+
+[studio]
+enabled = true
+port = 54324
+api_url = "http://127.0.0.1:54321"
+
+[inbucket]
+enabled = true
+port = 54325
+smtp_port = 54326
+pop3_port = 54327
+
+[functions.facebook-oauth]
+verify_jwt = false
+
+[functions.facebook-post]
+verify_jwt = true
+
+[storage]
+enabled = true
+port = 54328
+image_transformation = {enabled = true}
+
+[auth]
+enabled = true
+port = 54329
+external_email_enabled = true
+external_phone_enabled = true
+external_sms_enabled = true
+
+[edge-runtime]
+policy = "oneshot"
+inspector_port = 8083
+
+[analytics]
+enabled = false
+port = 54327
+vector_port = 54328
+gw_port = 54329

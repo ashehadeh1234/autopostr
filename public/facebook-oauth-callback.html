@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Facebook OAuth Callback</title>
+</head>
+<body>
+    <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+        <h2>Connecting to Facebook...</h2>
+        <p>Please wait while we complete the connection.</p>
+    </div>
+
+    <script>
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const state = urlParams.get('state');
+        const error = urlParams.get('error');
+        const errorDescription = urlParams.get('error_description');
+
+        if (error) {
+            // Handle OAuth error
+            console.error('Facebook OAuth error:', error, errorDescription);
+            window.opener?.postMessage({
+                type: 'FACEBOOK_OAUTH_ERROR',
+                error: errorDescription || error
+            }, window.location.origin);
+            window.close();
+        } else if (code) {
+            // Handle successful OAuth callback
+            // Send the authorization code to our edge function
+            fetch('/functions/v1/facebook-oauth', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('sb-wpobzmfjkxffnpddisrc-auth-token') ? JSON.parse(localStorage.getItem('sb-wpobzmfjkxffnpddisrc-auth-token')).access_token : ''}`
+                },
+                body: JSON.stringify({
+                    action: 'handleCallback',
+                    code: code,
+                    state: state
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Notify parent window of successful connection
+                window.opener?.postMessage({
+                    type: 'FACEBOOK_OAUTH_SUCCESS',
+                    user: data.user,
+                    pages: data.pages
+                }, window.location.origin);
+                
+                window.close();
+            })
+            .catch(error => {
+                console.error('Error handling Facebook OAuth:', error);
+                window.opener?.postMessage({
+                    type: 'FACEBOOK_OAUTH_ERROR',
+                    error: error.message
+                }, window.location.origin);
+                window.close();
+            });
+        } else {
+            // No code or error, something went wrong
+            window.opener?.postMessage({
+                type: 'FACEBOOK_OAUTH_ERROR',
+                error: 'No authorization code received'
+            }, window.location.origin);
+            window.close();
+        }
+    </script>
+</body>
+</html>
