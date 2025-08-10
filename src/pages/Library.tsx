@@ -13,7 +13,6 @@ import {
   Image,
   Video,
   FileText,
-  Calendar,
   Copy,
   Trash2,
   Edit,
@@ -26,89 +25,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useToast } from "@/hooks/use-toast";
-
-interface Asset {
-  id: string;
-  name: string;
-  type: 'image' | 'video' | 'document';
-  size: string;
-  createdAt: string;
-  publicUrl: string;
-  inRotation: boolean;
-  thumbnail?: string;
-}
-
-const mockAssets: Asset[] = [
-  {
-    id: '1',
-    name: 'summer-menu-special.jpg',
-    type: 'image',
-    size: '2.1 MB',
-    createdAt: '2024-01-15',
-    publicUrl: 'https://example.com/image1.jpg',
-    inRotation: true,
-    thumbnail: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=200&h=200&fit=crop'
-  },
-  {
-    id: '2',
-    name: 'restaurant-interior.mp4',
-    type: 'video',
-    size: '15.3 MB',
-    createdAt: '2024-01-14',
-    publicUrl: 'https://example.com/video1.mp4',
-    inRotation: true,
-    thumbnail: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200&h=200&fit=crop'
-  },
-  {
-    id: '3',
-    name: 'menu-items.pdf',
-    type: 'document',
-    size: '890 KB',
-    createdAt: '2024-01-13',
-    publicUrl: 'https://example.com/menu.pdf',
-    inRotation: false
-  },
-];
+import { FileUpload } from "@/components/FileUpload";
+import { useAssets } from "@/hooks/useAssets";
 
 const Library = () => {
-  const [assets, setAssets] = useState<Asset[]>(mockAssets);
+  const { assets, loading, uploadFile, deleteAsset, toggleRotation, copyUrl } = useAssets();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
-  const { toast } = useToast();
 
-  const handleUpload = () => {
-    toast({
-      title: "Upload feature",
-      description: "File upload integration will connect to Supabase Storage",
-    });
-  };
-
-  const handleCopyUrl = (url: string, name: string) => {
-    navigator.clipboard.writeText(url);
-    toast({
-      title: "URL copied",
-      description: `${name} URL copied to clipboard`,
-    });
-  };
-
-  const toggleRotation = (id: string) => {
-    setAssets(prev => prev.map(asset => 
-      asset.id === id ? { ...asset, inRotation: !asset.inRotation } : asset
-    ));
-    toast({
-      title: "Rotation updated",
-      description: "Asset rotation status changed",
-    });
-  };
-
-  const deleteAsset = (id: string) => {
-    setAssets(prev => prev.filter(asset => asset.id !== id));
-    toast({
-      title: "Asset deleted",
-      description: "Asset removed from library",
-    });
+  const handleFileSelect = async (files: FileList) => {
+    for (let i = 0; i < files.length; i++) {
+      await uploadFile(files[i]);
+    }
   };
 
   const filteredAssets = assets.filter(asset =>
@@ -116,11 +44,17 @@ const Library = () => {
   );
 
   const getFileIcon = (type: string) => {
-    switch (type) {
-      case 'image': return <Image className="w-4 h-4" />;
-      case 'video': return <Video className="w-4 h-4" />;
-      default: return <FileText className="w-4 h-4" />;
-    }
+    if (type.startsWith('image/')) return <Image className="w-4 h-4" />;
+    if (type.startsWith('video/')) return <Video className="w-4 h-4" />;
+    return <FileText className="w-4 h-4" />;
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
   return (
@@ -133,10 +67,11 @@ const Library = () => {
             Manage your uploaded content and rotation settings
           </p>
         </div>
-        <Button onClick={handleUpload} className="group">
-          <Upload className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-          Upload Files
-        </Button>
+        <FileUpload 
+          onFileSelect={handleFileSelect}
+          accept="*/*"
+          multiple={true}
+        />
       </div>
 
       {/* Controls */}
@@ -175,8 +110,16 @@ const Library = () => {
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="text-center py-12">
+          <div className="mx-auto w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-muted-foreground">Loading assets...</p>
+        </div>
+      )}
+
       {/* Empty State */}
-      {filteredAssets.length === 0 && !searchQuery && (
+      {!loading && filteredAssets.length === 0 && !searchQuery && (
         <Card className="border-dashed border-2 border-primary/20">
           <CardContent className="p-12 text-center space-y-4">
             <Upload className="w-12 h-12 mx-auto text-primary" />
@@ -185,34 +128,32 @@ const Library = () => {
               <p className="text-muted-foreground mb-4">
                 Drag & drop to upload or paste links to get started
               </p>
-              <Button onClick={handleUpload}>
-                Upload Your First Files
-              </Button>
+              <FileUpload onFileSelect={handleFileSelect} />
             </div>
           </CardContent>
         </Card>
       )}
 
       {/* Content Grid */}
-      {viewMode === 'grid' && filteredAssets.length > 0 && (
+      {!loading && viewMode === 'grid' && filteredAssets.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {filteredAssets.map((asset) => (
             <Card key={asset.id} className="group hover:shadow-medium transition-smooth">
               <CardContent className="p-4 space-y-3">
-                {/* Thumbnail */}
-                <div className="aspect-square bg-secondary rounded-lg overflow-hidden flex items-center justify-center">
-                  {asset.thumbnail ? (
-                    <img 
-                      src={asset.thumbnail} 
-                      alt={asset.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="text-muted-foreground">
-                      {getFileIcon(asset.type)}
-                    </div>
-                  )}
-                </div>
+                 {/* Thumbnail */}
+                 <div className="aspect-square bg-secondary rounded-lg overflow-hidden flex items-center justify-center">
+                   {asset.type.startsWith('image/') ? (
+                     <img 
+                       src={asset.url} 
+                       alt={asset.name}
+                       className="w-full h-full object-cover"
+                     />
+                   ) : (
+                     <div className="text-muted-foreground">
+                       {getFileIcon(asset.type)}
+                     </div>
+                   )}
+                 </div>
                 
                 {/* Info */}
                 <div className="space-y-2">
@@ -224,49 +165,49 @@ const Library = () => {
                           <MoreVertical className="w-3 h-3" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleCopyUrl(asset.publicUrl, asset.name)}>
-                          <Copy className="w-4 h-4 mr-2" />
-                          Copy URL
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => toggleRotation(asset.id)}>
-                          <RotateCcw className="w-4 h-4 mr-2" />
-                          {asset.inRotation ? 'Remove from' : 'Add to'} rotation
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Edit className="w-4 h-4 mr-2" />
-                          Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          className="text-destructive" 
-                          onClick={() => deleteAsset(asset.id)}
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
+                       <DropdownMenuContent align="end">
+                         <DropdownMenuItem onClick={() => copyUrl(asset.url)}>
+                           <Copy className="w-4 h-4 mr-2" />
+                           Copy URL
+                         </DropdownMenuItem>
+                         <DropdownMenuItem onClick={() => toggleRotation(asset)}>
+                           <RotateCcw className="w-4 h-4 mr-2" />
+                           {asset.rotation_enabled ? 'Remove from' : 'Add to'} rotation
+                         </DropdownMenuItem>
+                         <DropdownMenuItem>
+                           <Edit className="w-4 h-4 mr-2" />
+                           Rename
+                         </DropdownMenuItem>
+                         <DropdownMenuSeparator />
+                         <DropdownMenuItem 
+                           className="text-destructive" 
+                           onClick={() => deleteAsset(asset)}
+                         >
+                           <Trash2 className="w-4 h-4 mr-2" />
+                           Delete
+                         </DropdownMenuItem>
+                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                   
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{asset.size}</span>
-                    <div className="flex items-center space-x-1">
-                      {getFileIcon(asset.type)}
-                      <span>{asset.type}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(asset.createdAt).toLocaleDateString()}
-                    </span>
-                    {asset.inRotation && (
-                      <Badge variant="success" className="text-xs">
-                        In Rotation
-                      </Badge>
-                    )}
-                  </div>
+                   <div className="flex items-center justify-between text-xs text-muted-foreground">
+                     <span>{formatFileSize(asset.size)}</span>
+                     <div className="flex items-center space-x-1">
+                       {getFileIcon(asset.type)}
+                       <span>{asset.type.split('/')[0]}</span>
+                     </div>
+                   </div>
+                   
+                   <div className="flex items-center justify-between">
+                     <span className="text-xs text-muted-foreground">
+                       {new Date(asset.created_at).toLocaleDateString()}
+                     </span>
+                     {asset.rotation_enabled && (
+                       <Badge variant="default" className="text-xs">
+                         In Rotation
+                       </Badge>
+                     )}
+                   </div>
                 </div>
               </CardContent>
             </Card>
@@ -275,7 +216,7 @@ const Library = () => {
       )}
 
       {/* Content List */}
-      {viewMode === 'list' && filteredAssets.length > 0 && (
+      {!loading && viewMode === 'list' && filteredAssets.length > 0 && (
         <Card>
           <CardContent className="p-0">
             <div className="divide-y">
@@ -285,48 +226,48 @@ const Library = () => {
                     {getFileIcon(asset.type)}
                   </div>
                   
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium truncate">{asset.name}</h3>
-                    <p className="text-sm text-muted-foreground">{asset.size} • {new Date(asset.createdAt).toLocaleDateString()}</p>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    {asset.inRotation && (
-                      <Badge variant="success" className="text-xs">
-                        In Rotation
-                      </Badge>
-                    )}
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => handleCopyUrl(asset.publicUrl, asset.name)}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
+                   <div className="flex-1 min-w-0">
+                     <h3 className="font-medium truncate">{asset.name}</h3>
+                     <p className="text-sm text-muted-foreground">{formatFileSize(asset.size)} • {new Date(asset.created_at).toLocaleDateString()}</p>
+                   </div>
+                   
+                   <div className="flex items-center space-x-2">
+                     {asset.rotation_enabled && (
+                       <Badge variant="default" className="text-xs">
+                         In Rotation
+                       </Badge>
+                     )}
+                     <Button 
+                       variant="ghost" 
+                       size="sm"
+                       onClick={() => copyUrl(asset.url)}
+                     >
+                       <Copy className="w-4 h-4" />
+                     </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm">
                           <MoreVertical className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => toggleRotation(asset.id)}>
-                          <RotateCcw className="w-4 h-4 mr-2" />
-                          {asset.inRotation ? 'Remove from' : 'Add to'} rotation
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Edit className="w-4 h-4 mr-2" />
-                          Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          className="text-destructive"
-                          onClick={() => deleteAsset(asset.id)}
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
+                       <DropdownMenuContent align="end">
+                         <DropdownMenuItem onClick={() => toggleRotation(asset)}>
+                           <RotateCcw className="w-4 h-4 mr-2" />
+                           {asset.rotation_enabled ? 'Remove from' : 'Add to'} rotation
+                         </DropdownMenuItem>
+                         <DropdownMenuItem>
+                           <Edit className="w-4 h-4 mr-2" />
+                           Rename
+                         </DropdownMenuItem>
+                         <DropdownMenuSeparator />
+                         <DropdownMenuItem 
+                           className="text-destructive"
+                           onClick={() => deleteAsset(asset)}
+                         >
+                           <Trash2 className="w-4 h-4 mr-2" />
+                           Delete
+                         </DropdownMenuItem>
+                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                 </div>
@@ -337,11 +278,11 @@ const Library = () => {
       )}
 
       {/* Best Results Hint */}
-      {filteredAssets.length > 0 && (
+      {!loading && filteredAssets.length > 0 && (
         <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
           <p className="text-sm text-muted-foreground">
             💡 <strong>Best results:</strong> Upload 75+ photos/videos for optimal content rotation. 
-            Current library: {filteredAssets.length} assets ({filteredAssets.filter(a => a.inRotation).length} in rotation)
+            Current library: {filteredAssets.length} assets ({filteredAssets.filter(a => a.rotation_enabled).length} in rotation)
           </p>
         </div>
       )}
