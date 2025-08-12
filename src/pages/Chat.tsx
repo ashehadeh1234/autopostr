@@ -87,33 +87,6 @@ const Chat = () => {
             </p>
           </div>
 
-          {/* File Upload Area */}
-          <Card className="w-full mb-6 border-dashed border-2 border-primary/20 hover:border-primary/40 transition-colors">
-            <CardContent className="p-8">
-              <div className="text-center space-y-4">
-                <Upload className="w-12 h-12 mx-auto text-primary" />
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Drop files here or click to upload</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Images, videos, ZIP files, or CSV files accepted
-                  </p>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*,video/*,.zip,.csv"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    id="file-upload"
-                  />
-                  <label htmlFor="file-upload">
-                    <Button variant="outline" className="cursor-pointer">
-                      Choose Files
-                    </Button>
-                  </label>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Uploaded Files */}
           {files.length > 0 && (
@@ -135,13 +108,13 @@ const Chat = () => {
           )}
 
           {/* Chat Input */}
-          <div className="w-full space-y-4">
+          <div className="w-full space-y-3">
             <div className="flex space-x-4">
               <Textarea
                 placeholder="What would you like me to help you with? (e.g., 'Create captions for these images' or 'Schedule these posts for this week')"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                className="flex-1 min-h-[100px] resize-none"
+                className="flex-1 min-h-[120px] resize-none bg-accent/20 border-accent/40 focus-visible:ring-accent"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -149,6 +122,23 @@ const Chat = () => {
                   }
                 }}
               />
+            </div>
+            {/* Small Upload Button under chatbox */}
+            <div className="flex items-center">
+              <input
+                type="file"
+                multiple
+                accept="image/*,video/*,.zip,.csv"
+                onChange={handleFileUpload}
+                className="hidden"
+                id="chat-file-upload"
+              />
+              <label htmlFor="chat-file-upload">
+                <Button variant="secondary" size="sm" className="cursor-pointer">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload file
+                </Button>
+              </label>
             </div>
             <div className="flex justify-between items-center">
               <p className="text-sm text-muted-foreground">
