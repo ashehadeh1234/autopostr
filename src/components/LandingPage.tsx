@@ -327,7 +327,7 @@ const LandingPage = () => {
             <div className="space-y-4">
               <h3 className="font-semibold">Legal</h3>
               <ul className="space-y-2 text-muted-foreground">
-                <li><a href="#privacy" className="hover:text-foreground transition-smooth">Privacy Policy</a></li>
+                <li><a href="/privacy-policy" className="hover:text-foreground transition-smooth">Privacy Policy</a></li>
                 <li><a href="#terms" className="hover:text-foreground transition-smooth">Terms of Service</a></li>
                 <li><a href="#security" className="hover:text-foreground transition-smooth">Security</a></li>
               </ul>

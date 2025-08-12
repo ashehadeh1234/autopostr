@@ -11,6 +11,7 @@ import Chat from "./pages/Chat";
 import Library from "./pages/Library";
 import Auth from "./pages/Auth";
 import Connections from "./pages/Connections";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="analytics" element={<Index />} />
               <Route path="settings" element={<Index />} />
             </Route>
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
