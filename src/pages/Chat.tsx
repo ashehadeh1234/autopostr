@@ -133,12 +133,15 @@ const Chat = () => {
                 className="hidden"
                 id="chat-file-upload"
               />
-              <label htmlFor="chat-file-upload">
-                <Button variant="secondary" size="sm" className="cursor-pointer rounded-full shadow-sm">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload file
-                </Button>
-              </label>
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                className="rounded-full shadow-sm"
+                onClick={() => document.getElementById('chat-file-upload')?.click()}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Upload file
+              </Button>
             </div>
             <div className="flex justify-between items-center">
               <p className="text-sm text-muted-foreground">
