@@ -114,7 +114,7 @@ const Chat = () => {
                 placeholder="What would you like me to help you with? (e.g., 'Create captions for these images' or 'Schedule these posts for this week')"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                className="flex-1 min-h-[120px] resize-none bg-accent/20 border-accent/40 focus-visible:ring-accent"
+                className="flex-1 min-h-[120px] resize-none rounded-2xl bg-background/95 border border-border shadow-sm focus-visible:ring-ring"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -134,7 +134,7 @@ const Chat = () => {
                 id="chat-file-upload"
               />
               <label htmlFor="chat-file-upload">
-                <Button variant="secondary" size="sm" className="cursor-pointer">
+                <Button variant="secondary" size="sm" className="cursor-pointer rounded-full shadow-sm">
                   <Upload className="w-4 h-4 mr-2" />
                   Upload file
                 </Button>
@@ -148,7 +148,7 @@ const Chat = () => {
               <Button 
                 onClick={handleSend} 
                 disabled={!message.trim() && files.length === 0}
-                className="group"
+                className="group rounded-full shadow-sm"
               >
                 <Send className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" />
                 Send
