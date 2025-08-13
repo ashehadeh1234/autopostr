@@ -26,12 +26,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FileUpload } from "@/components/FileUpload";
+import { MediaViewer } from "@/components/MediaViewer";
 import { useAssets } from "@/hooks/useAssets";
 
 const Library = () => {
   const { assets, loading, uploadFile, deleteAsset, toggleRotation, copyUrl } = useAssets();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedAsset, setSelectedAsset] = useState<any>(null);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
 
   const handleFileSelect = async (files: FileList) => {
     console.log(`Starting upload of ${files.length} files`);
@@ -47,6 +50,13 @@ const Library = () => {
       console.log('All files uploaded successfully');
     } catch (error) {
       console.error('Error uploading files:', error);
+    }
+  };
+
+  const handleAssetClick = (asset: any) => {
+    if (asset.type.startsWith('image/') || asset.type.startsWith('video/')) {
+      setSelectedAsset(asset);
+      setIsViewerOpen(true);
     }
   };
 
@@ -149,22 +159,36 @@ const Library = () => {
       {!loading && viewMode === 'grid' && filteredAssets.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {filteredAssets.map((asset) => (
-            <Card key={asset.id} className="group hover:shadow-medium transition-smooth">
-              <CardContent className="p-4 space-y-3">
-                 {/* Thumbnail */}
-                 <div className="aspect-square bg-secondary rounded-lg overflow-hidden flex items-center justify-center">
-                   {asset.type.startsWith('image/') ? (
-                     <img 
-                       src={asset.url} 
-                       alt={asset.name}
-                       className="w-full h-full object-cover"
-                     />
-                   ) : (
-                     <div className="text-muted-foreground">
-                       {getFileIcon(asset.type)}
-                     </div>
-                   )}
-                 </div>
+             <Card key={asset.id} className="group hover:shadow-medium transition-smooth">
+               <CardContent className="p-4 space-y-3">
+                  {/* Thumbnail */}
+                  <div 
+                    className="aspect-square bg-secondary rounded-lg overflow-hidden flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
+                    onClick={() => handleAssetClick(asset)}
+                  >
+                    {asset.type.startsWith('image/') ? (
+                      <img 
+                        src={asset.url} 
+                        alt={asset.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : asset.type.startsWith('video/') ? (
+                      <div className="relative w-full h-full">
+                        <video 
+                          src={asset.url}
+                          className="w-full h-full object-cover"
+                          muted
+                        />
+                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                          <Video className="w-8 h-8 text-white" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-muted-foreground">
+                        {getFileIcon(asset.type)}
+                      </div>
+                    )}
+                  </div>
                 
                 {/* Info */}
                 <div className="space-y-2">
@@ -232,15 +256,18 @@ const Library = () => {
           <CardContent className="p-0">
             <div className="divide-y">
               {filteredAssets.map((asset) => (
-                <div key={asset.id} className="p-4 flex items-center space-x-4 hover:bg-secondary/30 transition-colors">
-                  <div className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center">
-                    {getFileIcon(asset.type)}
-                  </div>
-                  
-                   <div className="flex-1 min-w-0">
-                     <h3 className="font-medium truncate">{asset.name}</h3>
-                     <p className="text-sm text-muted-foreground">{formatFileSize(asset.size)} • {new Date(asset.created_at).toLocaleDateString()}</p>
+                 <div key={asset.id} className="p-4 flex items-center space-x-4 hover:bg-secondary/30 transition-colors">
+                   <div 
+                     className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
+                     onClick={() => handleAssetClick(asset)}
+                   >
+                     {getFileIcon(asset.type)}
                    </div>
+                   
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium truncate">{asset.name}</h3>
+                      <p className="text-sm text-muted-foreground">{formatFileSize(asset.size)} • {new Date(asset.created_at).toLocaleDateString()}</p>
+                    </div>
                    
                    <div className="flex items-center space-x-2">
                      {asset.rotation_enabled && (
@@ -295,10 +322,20 @@ const Library = () => {
             💡 <strong>Best results:</strong> Upload 75+ photos/videos for optimal content rotation. 
             Current library: {filteredAssets.length} assets ({filteredAssets.filter(a => a.rotation_enabled).length} in rotation)
           </p>
-        </div>
-      )}
-    </div>
-  );
-};
+         </div>
+       )}
 
-export default Library;
+       {/* Media Viewer */}
+       <MediaViewer
+         asset={selectedAsset}
+         isOpen={isViewerOpen}
+         onClose={() => {
+           setIsViewerOpen(false);
+           setSelectedAsset(null);
+         }}
+       />
+     </div>
+   );
+ };
+
+ export default Library;
