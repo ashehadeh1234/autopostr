@@ -28,11 +28,25 @@
         } else if (code) {
             // Handle successful OAuth callback
             // Send the authorization code to our edge function
-            fetch('/functions/v1/facebook-oauth', {
+            // Get auth token from localStorage (Supabase format)
+            const getAuthToken = () => {
+                try {
+                    const authData = localStorage.getItem('sb-wpobzmfjkxffnpddisrc-auth-token');
+                    if (authData) {
+                        const parsed = JSON.parse(authData);
+                        return parsed.access_token;
+                    }
+                } catch (e) {
+                    console.error('Error parsing auth token:', e);
+                }
+                return '';
+            };
+
+            fetch('https://wpobzmfjkxffnpddisrc.supabase.co/functions/v1/facebook-oauth', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('sb-wpobzmfjkxffnpddisrc-auth-token') ? JSON.parse(localStorage.getItem('sb-wpobzmfjkxffnpddisrc-auth-token')).access_token : ''}`
+                    'Authorization': `Bearer ${getAuthToken()}`
                 },
                 body: JSON.stringify({
                     action: 'handleCallback',
