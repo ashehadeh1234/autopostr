@@ -34,8 +34,19 @@ const Library = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleFileSelect = async (files: FileList) => {
-    for (let i = 0; i < files.length; i++) {
-      await uploadFile(files[i]);
+    console.log(`Starting upload of ${files.length} files`);
+    
+    // Upload all files in parallel instead of sequentially
+    const uploadPromises = Array.from(files).map((file, index) => {
+      console.log(`Uploading file ${index + 1}: ${file.name}`);
+      return uploadFile(file);
+    });
+    
+    try {
+      await Promise.all(uploadPromises);
+      console.log('All files uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading files:', error);
     }
   };
 
