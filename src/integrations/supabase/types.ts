@@ -228,6 +228,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_random_media_asset: {
+        Args: { p_user_id: string }
+        Returns: {
+          id: string
+          name: string
+          type: string
+          url: string
+          size: number
+          created_at: string
+        }[]
+      }
       get_user_role_in_workspace: {
         Args: { workspace_id_param: string }
         Returns: Database["public"]["Enums"]["app_role"]
