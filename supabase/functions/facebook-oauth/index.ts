@@ -6,6 +6,8 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
+  console.log('Facebook OAuth request:', req.method, req.url);
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -69,6 +71,9 @@ Deno.serve(async (req) => {
         `scope=${encodeURIComponent(scope)}&` +
         `response_type=code&` +
         `state=${stateParam}`
+      
+      console.log('Generated authUrl:', authUrl);
+      console.log('Redirect URI used:', redirectUri);
 
       return new Response(JSON.stringify({ authUrl }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

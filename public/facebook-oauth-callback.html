@@ -17,6 +17,8 @@
         const error = urlParams.get('error');
         const errorDescription = urlParams.get('error_description');
 
+        console.log('Facebook callback received:', { code: !!code, state: !!state, error, errorDescription });
+
         if (error) {
             // Handle OAuth error
             console.error('Facebook OAuth error:', error, errorDescription);
