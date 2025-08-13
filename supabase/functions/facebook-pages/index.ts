@@ -32,33 +32,17 @@ serve(async (req) => {
       })
     }
 
-    // Get the most recent Facebook access token from our social_connections table
-    const { data: facebookConnection, error: connectionError } = await supabase
-      .from('social_connections')
-      .select('access_token')
-      .eq('user_id', user.id)
-      .eq('platform', 'facebook')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    if (connectionError) {
-      console.error('Error fetching Facebook connection:', connectionError)
-      return new Response(JSON.stringify({ error: 'Database error' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    if (!facebookConnection) {
-      return new Response(JSON.stringify({ error: 'No Facebook connection found. Please connect first.' }), {
+    // Get Facebook token from the current session (after OAuth)
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session?.provider_token) {
+      return new Response(JSON.stringify({ error: 'No Facebook token found. Please connect Facebook first.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const accessToken = facebookConnection.access_token
+    const accessToken = session.provider_token
 
     console.log('Fetching Facebook pages for user:', user.id)
 

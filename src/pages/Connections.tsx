@@ -103,10 +103,16 @@ export default function Connections() {
   const [isLoading, setIsLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
 
-  // Load social connections from database
+  // Load social connections from database and handle Facebook OAuth returns
   useEffect(() => {
     if (user) {
       loadSocialConnections();
+      
+      // Check if we just returned from Facebook OAuth for posting
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('facebook_posting') === 'true') {
+        handleFacebookOAuthReturn();
+      }
     }
   }, [user]);
 
@@ -151,13 +157,12 @@ export default function Connections() {
     }
   };
 
-  const fetchFacebookPages = async () => {
-    if (!session?.access_token) return;
-    
+  const handleFacebookOAuthReturn = async () => {
     try {
+      // Extract Facebook token and save it for posting
       const response = await supabase.functions.invoke('facebook-pages', {
         headers: {
-          Authorization: `Bearer ${session.access_token}`
+          Authorization: `Bearer ${session?.access_token}`
         }
       });
 
@@ -167,17 +172,25 @@ export default function Connections() {
       
       toast({
         title: "Connected to Facebook",
-        description: `Successfully connected ${response.data.pages?.length || 0} Facebook pages.`,
+        description: `Successfully connected ${response.data.pages?.length || 0} Facebook pages for posting.`,
       });
       
+      // Clean up URL
+      window.history.replaceState({}, document.title, '/app/connections');
+      
     } catch (error) {
-      console.error('Error fetching Facebook pages:', error);
+      console.error('Error handling Facebook OAuth return:', error);
       toast({
         title: "Connection Error", 
-        description: "Failed to fetch Facebook pages. Please ensure you're an admin/editor of the pages and try again.",
+        description: "Failed to connect Facebook pages. Please ensure you're an admin/editor of the pages and try again.",
         variant: "destructive",
       });
     }
+  };
+
+  const fetchFacebookPages = async () => {
+    // This function is now handled by handleFacebookOAuthReturn
+    return handleFacebookOAuthReturn();
   };
 
   const handleConnect = async (connectionId: string) => {
@@ -202,39 +215,33 @@ export default function Connections() {
   };
 
   const handleFacebookConnect = async () => {
-    if (!session?.access_token) return;
-    
     setConnecting('facebook');
     
     try {
-      // Use our custom Facebook OAuth endpoint
-      const response = await supabase.functions.invoke('facebook-oauth', {
-        body: { action: 'getAuthUrl' },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
+      // Store current user info to restore after Facebook OAuth
+      const currentUser = user;
+      const currentSession = session;
+      
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'facebook',
+        options: {
+          redirectTo: `${window.location.origin}/app/connections?facebook_posting=true`,
+          scopes: [
+            'public_profile',
+            'email', 
+            'pages_show_list',
+            'pages_manage_posts',
+            'pages_manage_metadata',
+            'pages_read_engagement',
+            'pages_read_user_content',
+            'pages_manage_engagement'
+          ].join(',')
         }
       });
 
-      if (response.error) throw response.error;
-
-      // Open Facebook OAuth in new window with proper callback
-      const authWindow = window.open(
-        response.data.authUrl, 
-        'facebook-oauth', 
-        'width=600,height=600,scrollbars=yes,resizable=yes'
-      );
+      if (error) throw error;
       
-      // Poll for window closure and then fetch pages
-      const checkClosed = setInterval(() => {
-        if (authWindow?.closed) {
-          clearInterval(checkClosed);
-          // Small delay to ensure callback completed
-          setTimeout(() => {
-            fetchFacebookPages();
-          }, 1000);
-        }
-      }, 1000);
-      
+      // OAuth will redirect, so we handle the response in useEffect
     } catch (error) {
       console.error('Facebook connect error:', error);
       toast({
