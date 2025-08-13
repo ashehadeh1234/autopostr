@@ -172,24 +172,51 @@ export default function Connections() {
   };
 
   const handleFacebookConnect = async () => {
+    if (!session?.access_token) return;
+    
     setConnecting('facebook');
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'facebook',
-        options: {
-          scopes: 'pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_engagement',
-          redirectTo: `${window.location.origin}/app/connections`
+      const response = await supabase.functions.invoke('facebook-oauth', {
+        body: { action: 'getAuthUrl' },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
         }
       });
 
-      if (error) {
-        throw error;
-      }
+      if (response.error) throw response.error;
+
+      // Open Facebook OAuth in new window
+      window.open(response.data.authUrl, 'facebook-oauth', 'width=600,height=600');
+      
+      // Listen for OAuth completion
+      const handleMessage = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        
+        if (event.data.type === 'FACEBOOK_OAUTH_SUCCESS') {
+          loadSocialConnections();
+          toast({
+            title: "Connected to Facebook",
+            description: `Successfully connected ${event.data.pages?.length || 0} Facebook pages.`,
+          });
+          window.removeEventListener('message', handleMessage);
+          setConnecting(null);
+        } else if (event.data.type === 'FACEBOOK_OAUTH_ERROR') {
+          toast({
+            title: "Connection Failed",
+            description: event.data.error || "Failed to connect to Facebook",
+            variant: "destructive",
+          });
+          window.removeEventListener('message', handleMessage);
+          setConnecting(null);
+        }
+      };
+      
+      window.addEventListener('message', handleMessage);
     } catch (error) {
       console.error('Facebook connect error:', error);
       toast({
         title: "Connection Failed",
-        description: error.message || "Failed to connect to Facebook",
+        description: "Failed to start Facebook connection",
         variant: "destructive",
       });
       setConnecting(null);
