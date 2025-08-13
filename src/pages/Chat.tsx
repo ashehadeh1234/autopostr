@@ -15,37 +15,67 @@ import {
   Zap
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAssets } from "@/hooks/useAssets";
 
 const Chat = () => {
   const [message, setMessage] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [uploadedAssets, setUploadedAssets] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { uploadFile } = useAssets();
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
       setFiles(prev => [...prev, ...newFiles]);
-      toast({
-        title: "Files uploaded",
-        description: `${newFiles.length} file(s) ready to send`,
+      
+      // Upload files to storage immediately to get public URLs
+      setIsLoading(true);
+      const uploadPromises = newFiles.map(async (file) => {
+        try {
+          const asset = await uploadFile(file);
+          return asset;
+        } catch (error) {
+          console.error("Failed to upload file:", error);
+          toast({
+            title: "File upload failed",
+            description: `Failed to upload ${file.name}`,
+            variant: "destructive",
+          });
+          return null;
+        }
       });
+      
+      const uploadedFiles = await Promise.all(uploadPromises);
+      const successfulUploads = uploadedFiles.filter(Boolean);
+      setUploadedAssets(prev => [...prev, ...successfulUploads]);
+      setIsLoading(false);
+      
+      if (successfulUploads.length > 0) {
+        toast({
+          title: "Files uploaded",
+          description: `${successfulUploads.length} file(s) uploaded and ready to send`,
+        });
+      }
     }
   };
 
   const handleSend = async () => {
-    if (!message.trim() && files.length === 0) return;
+    if (!message.trim() && uploadedAssets.length === 0) return;
     
     setIsLoading(true);
     
     try {
-      // Prepare data for n8n webhook
+      // Prepare data for n8n webhook with public file URLs
       const webhookData = {
         message: message.trim(),
-        files: files.map(file => ({
-          name: file.name,
-          type: file.type,
-          size: file.size
+        files: uploadedAssets.map(asset => ({
+          name: asset.name,
+          type: asset.type,
+          size: asset.size,
+          url: asset.url,
+          storage_path: asset.storage_path
         })),
         timestamp: new Date().toISOString(),
         source: "chat_interface"
@@ -84,6 +114,7 @@ const Chat = () => {
       setIsLoading(false);
       setMessage("");
       setFiles([]);
+      setUploadedAssets([]);
     }
   };
 
@@ -130,18 +161,18 @@ const Chat = () => {
           </div>
 
           {/* Uploaded Files */}
-          {files.length > 0 && (
+          {uploadedAssets.length > 0 && (
             <div className="w-full mb-6">
-              <h3 className="text-sm font-medium mb-3">Uploaded Files ({files.length})</h3>
+              <h3 className="text-sm font-medium mb-3">Uploaded Files ({uploadedAssets.length})</h3>
               <div className="flex flex-wrap gap-2">
-                {files.map((file, index) => (
+                {uploadedAssets.map((asset, index) => (
                   <Badge key={index} variant="secondary" className="p-2">
-                    {file.type.startsWith('image/') && <Image className="w-3 h-3 mr-1" />}
-                    {file.type.startsWith('video/') && <Video className="w-3 h-3 mr-1" />}
-                    {!file.type.startsWith('image/') && !file.type.startsWith('video/') && (
+                    {asset.type.startsWith('image/') && <Image className="w-3 h-3 mr-1" />}
+                    {asset.type.startsWith('video/') && <Video className="w-3 h-3 mr-1" />}
+                    {!asset.type.startsWith('image/') && !asset.type.startsWith('video/') && (
                       <FileText className="w-3 h-3 mr-1" />
                     )}
-                    {file.name}
+                    {asset.name} ✓
                   </Badge>
                 ))}
               </div>
@@ -188,12 +219,12 @@ const Chat = () => {
             </div>
             <div className="flex justify-between items-center">
               <p className="text-sm text-muted-foreground">
-                {files.length > 0 && `${files.length} file(s) attached • `}
+                {uploadedAssets.length > 0 && `${uploadedAssets.length} file(s) ready • `}
                 Press Enter to send, Shift+Enter for new line
               </p>
               <Button 
                 onClick={handleSend} 
-                disabled={(!message.trim() && files.length === 0) || isLoading}
+                disabled={(!message.trim() && uploadedAssets.length === 0) || isLoading}
                 className="group rounded-full shadow-sm"
               >
                 <Send className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" />
