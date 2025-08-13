@@ -103,10 +103,15 @@ export default function Connections() {
   const [isLoading, setIsLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
 
-  // Load social connections from database
+  // Load social connections from database and handle OAuth returns
   useEffect(() => {
     if (user) {
       loadSocialConnections();
+      // Check if we just returned from OAuth and fetch pages
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('provider') === 'facebook') {
+        fetchFacebookPages();
+      }
     }
   }, [user]);
 
@@ -147,6 +152,38 @@ export default function Connections() {
       });
     } finally {
       setIsLoading(false);
+      setConnecting(null);
+    }
+  };
+
+  const fetchFacebookPages = async () => {
+    if (!session?.access_token) return;
+    
+    try {
+      const response = await supabase.functions.invoke('facebook-pages', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
+
+      if (response.error) throw response.error;
+
+      await loadSocialConnections();
+      
+      toast({
+        title: "Connected to Facebook",
+        description: `Successfully connected ${response.data.pages?.length || 0} Facebook pages.`,
+      });
+      
+      // Clean up URL
+      window.history.replaceState({}, document.title, '/app/connections');
+    } catch (error) {
+      console.error('Error fetching Facebook pages:', error);
+      toast({
+        title: "Connection Error",
+        description: "Connected to Facebook but failed to fetch pages. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -172,46 +209,28 @@ export default function Connections() {
   };
 
   const handleFacebookConnect = async () => {
-    if (!session?.access_token) return;
-    
     setConnecting('facebook');
+    
     try {
-      const response = await supabase.functions.invoke('facebook-oauth', {
-        body: { action: 'getAuthUrl' },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'facebook',
+        options: {
+          redirectTo: `${window.location.origin}/app/connections`,
+          scopes: [
+            'public_profile',
+            'email',
+            'pages_show_list',
+            'pages_manage_posts',
+            'pages_manage_metadata',
+            'pages_read_engagement',
+            'pages_read_user_content'
+          ].join(',')
         }
       });
 
-      if (response.error) throw response.error;
-
-      // Open Facebook OAuth in new window
-      window.open(response.data.authUrl, 'facebook-oauth', 'width=600,height=600');
+      if (error) throw error;
       
-      // Listen for OAuth completion
-      const handleMessage = (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) return;
-        
-        if (event.data.type === 'FACEBOOK_OAUTH_SUCCESS') {
-          loadSocialConnections();
-          toast({
-            title: "Connected to Facebook",
-            description: `Successfully connected ${event.data.pages?.length || 0} Facebook pages.`,
-          });
-          window.removeEventListener('message', handleMessage);
-          setConnecting(null);
-        } else if (event.data.type === 'FACEBOOK_OAUTH_ERROR') {
-          toast({
-            title: "Connection Failed",
-            description: event.data.error || "Failed to connect to Facebook",
-            variant: "destructive",
-          });
-          window.removeEventListener('message', handleMessage);
-          setConnecting(null);
-        }
-      };
-      
-      window.addEventListener('message', handleMessage);
+      // OAuth will redirect, so we don't need to handle the response here
     } catch (error) {
       console.error('Facebook connect error:', error);
       toast({
