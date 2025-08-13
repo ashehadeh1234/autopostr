@@ -53,42 +53,6 @@ export type Database = {
         }
         Relationships: []
       }
-      page_connections: {
-        Row: {
-          created_at: string
-          id: string
-          ig_user_id: string | null
-          page_access_token_encrypted: string
-          page_id: string
-          page_name: string
-          updated_at: string
-          user_id: string
-          workspace_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          ig_user_id?: string | null
-          page_access_token_encrypted: string
-          page_id: string
-          page_name: string
-          updated_at?: string
-          user_id: string
-          workspace_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          ig_user_id?: string | null
-          page_access_token_encrypted?: string
-          page_id?: string
-          page_name?: string
-          updated_at?: string
-          user_id?: string
-          workspace_id?: string
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           avatar_url: string | null

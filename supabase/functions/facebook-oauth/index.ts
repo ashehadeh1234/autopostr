@@ -6,8 +6,6 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
-  console.log('Facebook OAuth request:', req.method, req.url);
-  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -61,7 +59,7 @@ Deno.serve(async (req) => {
         throw new Error('Facebook App ID not configured')
       }
 
-      const redirectUri = `https://wpobzmfjkxffnpddisrc.supabase.co/facebook-oauth-callback.html`
+      const redirectUri = `${Deno.env.get('SUPABASE_URL')}/facebook-oauth-callback.html`
       const scope = 'pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_engagement'
       const stateParam = btoa(JSON.stringify({ userId: user.id, timestamp: Date.now() }))
       
@@ -71,9 +69,6 @@ Deno.serve(async (req) => {
         `scope=${encodeURIComponent(scope)}&` +
         `response_type=code&` +
         `state=${stateParam}`
-      
-      console.log('Generated authUrl:', authUrl);
-      console.log('Redirect URI used:', redirectUri);
 
       return new Response(JSON.stringify({ authUrl }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -108,7 +103,7 @@ Deno.serve(async (req) => {
         throw new Error('Facebook credentials not configured')
       }
 
-      const redirectUri = `https://wpobzmfjkxffnpddisrc.supabase.co/facebook-oauth-callback.html`
+      const redirectUri = `${Deno.env.get('SUPABASE_URL')}/facebook-oauth-callback.html`
       
       // Get access token with timeout and error handling
       const tokenController = new AbortController()
