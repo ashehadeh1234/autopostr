@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 const Chat = () => {
   const [message, setMessage] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,17 +33,58 @@ const Chat = () => {
     }
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!message.trim() && files.length === 0) return;
     
-    // Placeholder for sending to N8N webhook
-    toast({
-      title: "Message sent",
-      description: "Your request is being processed by AI",
-    });
+    setIsLoading(true);
     
-    setMessage("");
-    setFiles([]);
+    try {
+      // Prepare data for n8n webhook
+      const webhookData = {
+        message: message.trim(),
+        files: files.map(file => ({
+          name: file.name,
+          type: file.type,
+          size: file.size
+        })),
+        timestamp: new Date().toISOString(),
+        source: "chat_interface"
+      };
+
+      console.log("Sending to n8n webhook:", webhookData);
+
+      // Send to n8n webhook
+      const response = await fetch("https://ajs123456.app.n8n.cloud/webhook-test/bf41bcf6-20d2-48a3-ba36-978833e0f4ea", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(webhookData),
+      });
+
+      if (response.ok) {
+        const result = await response.text();
+        console.log("n8n webhook response:", result);
+        
+        toast({
+          title: "Message sent to workflow",
+          description: "Your request is being processed by n8n",
+        });
+      } else {
+        throw new Error(`Webhook failed with status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Error sending to n8n webhook:", error);
+      toast({
+        title: "Failed to send message",
+        description: "Could not connect to n8n workflow. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      setMessage("");
+      setFiles([]);
+    }
   };
 
   const quickActions = [
@@ -87,7 +129,6 @@ const Chat = () => {
             </p>
           </div>
 
-
           {/* Uploaded Files */}
           {files.length > 0 && (
             <div className="w-full mb-6">
@@ -121,6 +162,7 @@ const Chat = () => {
                     handleSend();
                   }
                 }}
+                disabled={isLoading}
               />
             </div>
             {/* Small Upload Button under chatbox */}
@@ -138,6 +180,7 @@ const Chat = () => {
                 size="sm" 
                 className="rounded-full shadow-sm"
                 onClick={() => document.getElementById('chat-file-upload')?.click()}
+                disabled={isLoading}
               >
                 <Upload className="w-4 h-4 mr-2" />
                 Upload file
@@ -150,11 +193,11 @@ const Chat = () => {
               </p>
               <Button 
                 onClick={handleSend} 
-                disabled={!message.trim() && files.length === 0}
+                disabled={(!message.trim() && files.length === 0) || isLoading}
                 className="group rounded-full shadow-sm"
               >
                 <Send className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" />
-                Send
+                {isLoading ? "Sending..." : "Send"}
               </Button>
             </div>
           </div>
