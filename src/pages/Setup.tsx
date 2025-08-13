@@ -21,9 +21,9 @@ const Setup = () => {
 
   const setupSteps = [
     {
-      id: "facebook-oauth",
-      title: "Facebook OAuth Configuration",
-      description: "Configure your Facebook App's OAuth redirect URI",
+      id: "supabase-facebook-provider",
+      title: "Enable Facebook Provider in Supabase",
+      description: "Enable Facebook authentication in your Supabase project",
       completed: false,
       urgent: true,
       content: (
@@ -31,11 +31,49 @@ const Setup = () => {
           <Alert>
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              <strong>Critical:</strong> This is the most common cause of Facebook OAuth issues. 
-              Make sure you use the exact URL below with no trailing slash.
+              <strong>Required:</strong> Facebook provider must be enabled in Supabase before OAuth will work.
             </AlertDescription>
           </Alert>
           
+          <div className="space-y-2">
+            <p className="text-sm font-medium">1. Go to Supabase Dashboard → Authentication → Providers</p>
+            <p className="text-sm font-medium">2. Find "Facebook" and click to configure it</p>
+            <p className="text-sm font-medium">3. Toggle "Enable sign in with Facebook" to ON</p>
+            <p className="text-sm font-medium">4. Add your Facebook App credentials:</p>
+            <div className="ml-4 space-y-2">
+              <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
+                <span className="text-muted-foreground">Facebook App ID:</span>
+                <code className="flex-1">Your Facebook App ID</code>
+              </div>
+              <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
+                <span className="text-muted-foreground">Facebook App Secret:</span>
+                <code className="flex-1">Your Facebook App Secret</code>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Get these from Meta for Developers → Your App → Settings → Basic
+            </p>
+          </div>
+
+          <Button asChild variant="outline">
+            <a 
+              href={`https://supabase.com/dashboard/project/${projectRef}/auth/providers`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+            >
+              Open Supabase Auth Providers <ExternalLink className="ml-2 h-4 w-4" />
+            </a>
+          </Button>
+        </div>
+      )
+    },
+    {
+      id: "facebook-oauth",
+      title: "Facebook OAuth Configuration",
+      description: "Configure your Facebook App's OAuth redirect URI",
+      completed: false,
+      content: (
+        <div className="space-y-4">
           <div className="space-y-2">
             <p className="text-sm font-medium">1. Go to Meta for Developers → Your App → Facebook Login → Settings</p>
             <p className="text-sm font-medium">2. Add this exact URL to "Valid OAuth Redirect URIs":</p>
@@ -52,14 +90,6 @@ const Setup = () => {
             <p className="text-sm text-muted-foreground">
               ⚠️ Remove any URLs pointing to /functions/... - they cause errors
             </p>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium">3. Make sure your Facebook App is in the correct mode:</p>
-            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-              <li><strong>Development mode:</strong> Add yourself as Admin/Developer/Tester</li>
-              <li><strong>Live mode:</strong> Complete App Review for required permissions</li>
-            </ul>
           </div>
 
           <Button asChild variant="outline">
