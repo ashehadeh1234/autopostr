@@ -103,16 +103,10 @@ export default function Connections() {
   const [isLoading, setIsLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
 
-  // Load social connections from database and handle Facebook OAuth returns
+  // Load social connections from database
   useEffect(() => {
     if (user) {
       loadSocialConnections();
-      
-      // Check if we just returned from Facebook OAuth for posting
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('facebook_posting') === 'true') {
-        handleFacebookOAuthReturn();
-      }
     }
   }, [user]);
 
@@ -153,44 +147,7 @@ export default function Connections() {
       });
     } finally {
       setIsLoading(false);
-      setConnecting(null);
     }
-  };
-
-  const handleFacebookOAuthReturn = async () => {
-    try {
-      // Extract Facebook token and save it for posting
-      const response = await supabase.functions.invoke('facebook-pages', {
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`
-        }
-      });
-
-      if (response.error) throw response.error;
-
-      await loadSocialConnections();
-      
-      toast({
-        title: "Connected to Facebook",
-        description: `Successfully connected ${response.data.pages?.length || 0} Facebook pages for posting.`,
-      });
-      
-      // Clean up URL
-      window.history.replaceState({}, document.title, '/app/connections');
-      
-    } catch (error) {
-      console.error('Error handling Facebook OAuth return:', error);
-      toast({
-        title: "Connection Error", 
-        description: "Failed to connect Facebook pages. Please ensure you're an admin/editor of the pages and try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const fetchFacebookPages = async () => {
-    // This function is now handled by handleFacebookOAuthReturn
-    return handleFacebookOAuthReturn();
   };
 
   const handleConnect = async (connectionId: string) => {
@@ -215,33 +172,46 @@ export default function Connections() {
   };
 
   const handleFacebookConnect = async () => {
-    setConnecting('facebook');
+    if (!session?.access_token) return;
     
+    setConnecting('facebook');
     try {
-      // Store current user info to restore after Facebook OAuth
-      const currentUser = user;
-      const currentSession = session;
-      
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'facebook',
-        options: {
-          redirectTo: `${window.location.origin}/app/connections?facebook_posting=true`,
-          scopes: [
-            'public_profile',
-            'email', 
-            'pages_show_list',
-            'pages_manage_posts',
-            'pages_manage_metadata',
-            'pages_read_engagement',
-            'pages_read_user_content',
-            'pages_manage_engagement'
-          ].join(',')
+      const response = await supabase.functions.invoke('facebook-oauth', {
+        body: { action: 'getAuthUrl' },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
         }
       });
 
-      if (error) throw error;
+      if (response.error) throw response.error;
+
+      // Open Facebook OAuth in new window
+      window.open(response.data.authUrl, 'facebook-oauth', 'width=600,height=600');
       
-      // OAuth will redirect, so we handle the response in useEffect
+      // Listen for OAuth completion
+      const handleMessage = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        
+        if (event.data.type === 'FACEBOOK_OAUTH_SUCCESS') {
+          loadSocialConnections();
+          toast({
+            title: "Connected to Facebook",
+            description: `Successfully connected ${event.data.pages?.length || 0} Facebook pages.`,
+          });
+          window.removeEventListener('message', handleMessage);
+          setConnecting(null);
+        } else if (event.data.type === 'FACEBOOK_OAUTH_ERROR') {
+          toast({
+            title: "Connection Failed",
+            description: event.data.error || "Failed to connect to Facebook",
+            variant: "destructive",
+          });
+          window.removeEventListener('message', handleMessage);
+          setConnecting(null);
+        }
+      };
+      
+      window.addEventListener('message', handleMessage);
     } catch (error) {
       console.error('Facebook connect error:', error);
       toast({

@@ -34,9 +34,6 @@ smtp_port = 54326
 pop3_port = 54327
 
 [functions.facebook-oauth]
-verify_jwt = true
-
-[functions.facebook-callback]
 verify_jwt = false
 
 [functions.facebook-post]
