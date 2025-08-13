@@ -164,23 +164,45 @@ Deno.serve(async (req) => {
 
     // Get user's pages with detailed debugging
     console.log('Fetching pages data...')
+    
+    // Try multiple API endpoints to diagnose the issue
+    const endpoints = [
+      { name: 'me/accounts', url: `https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token,perms,tasks&access_token=${userAccessToken}` },
+      { name: 'me/accounts (no fields)', url: `https://graph.facebook.com/v18.0/me/accounts?access_token=${userAccessToken}` },
+      { name: 'me (basic)', url: `https://graph.facebook.com/v18.0/me?access_token=${userAccessToken}` },
+      { name: 'me (permissions)', url: `https://graph.facebook.com/v18.0/me/permissions?access_token=${userAccessToken}` }
+    ]
+    
+    const results = {}
+    
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Testing ${endpoint.name}...`)
+        const response = await fetch(endpoint.url)
+        const data = await response.json()
+        
+        console.log(`${endpoint.name} - Status:`, response.status)
+        console.log(`${endpoint.name} - Response:`, JSON.stringify(data, null, 2))
+        
+        results[endpoint.name] = {
+          status: response.status,
+          data: data,
+          error: data.error || null
+        }
+      } catch (error) {
+        console.error(`Error testing ${endpoint.name}:`, error)
+        results[endpoint.name] = { error: error.message }
+      }
+    }
+    
+    // Use the main endpoint for the rest of the flow
     const pagesResponse = await fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token,perms,tasks&access_token=${userAccessToken}`)
     const pagesData = await pagesResponse.json()
     
-    console.log('Pages API response status:', pagesResponse.status)
-    console.log('Pages API response headers:', Object.fromEntries(pagesResponse.headers))
-    console.log('Full pages response:', JSON.stringify(pagesData, null, 2))
-    
-    if (pagesData.error) {
-      console.error('Pages API error:', pagesData.error)
-      console.error('Error details:', {
-        message: pagesData.error.message,
-        type: pagesData.error.type,
-        code: pagesData.error.code,
-        error_subcode: pagesData.error.error_subcode,
-        fbtrace_id: pagesData.error.fbtrace_id
-      })
-    }
+    console.log('=== FACEBOOK API DIAGNOSTICS ===')
+    console.log('All endpoint results:', JSON.stringify(results, null, 2))
+    console.log('Main pages response status:', pagesResponse.status)
+    console.log('Main pages response:', JSON.stringify(pagesData, null, 2))
     
     // Check if pages array exists and its length
     if (pagesData.data) {
