@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Upload, Brain, Calendar, Facebook, Instagram, TwitterIcon as X, Linkedin, Youtube, Star, Shield, Clock, RotateCcw } from "lucide-react";
+import { ArrowRight, Upload, Brain, Calendar, Facebook, Instagram, TwitterIcon as X, Linkedin, Youtube, Sparkles, Shield, Clock, RotateCcw } from "lucide-react";
 import heroIllustration from "@/assets/hero-illustration.jpg";
 import featureLibrary from "@/assets/feature-library.jpg";
 import featureAI from "@/assets/feature-ai.jpg";
@@ -22,7 +22,7 @@ const LandingPage = () => {
       <nav className="flex items-center justify-between p-6 max-w-7xl mx-auto">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-            <Star className="w-5 h-5 text-white fill-white" />
+            <Sparkles className="w-5 h-5 text-white" />
           </div>
           <span className="text-xl font-bold text-foreground">AutoPostr</span>
         </div>
@@ -49,7 +49,7 @@ const LandingPage = () => {
           <div className="space-y-8">
             <div className="space-y-4">
               <Badge variant="secondary" className="text-sm font-medium">
-                <Star className="w-3 h-3 mr-1 fill-current" />
+                <Sparkles className="w-3 h-3 mr-1" />
                 AI-Powered Social Media
               </Badge>
               <h1 className="text-5xl md:text-6xl font-bold leading-tight">
@@ -299,7 +299,7 @@ const LandingPage = () => {
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-                  <Star className="w-5 h-5 text-white fill-white" />
+                  <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-xl font-bold">AutoPostr</span>
               </div>
