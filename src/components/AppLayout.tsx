@@ -23,7 +23,7 @@ import {
   Calendar, 
   BarChart3, 
   Settings, 
-  Sparkles,
+  Star,
   ChevronDown,
   Bell,
   User,
@@ -64,7 +64,7 @@ function AppSidebar() {
           <SidebarGroupLabel>
             <div className="flex items-center space-x-2">
               <div className="w-6 h-6 rounded-lg gradient-primary flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-white" />
+                <Star className="w-4 h-4 text-white fill-white" />
               </div>
               <span className="font-bold">AutoPostr</span>
             </div>
