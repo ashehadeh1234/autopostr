@@ -189,15 +189,38 @@ export default function Connections() {
       window.open(response.data.authUrl, 'facebook-oauth', 'width=600,height=600');
       
       // Listen for OAuth completion
-      const handleMessage = (event: MessageEvent) => {
+      const handleMessage = async (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
         
-        if (event.data.type === 'FACEBOOK_OAUTH_SUCCESS') {
-          loadSocialConnections();
-          toast({
-            title: "Connected to Facebook",
-            description: `Successfully connected ${event.data.pages?.length || 0} Facebook pages.`,
-          });
+        if (event.data.type === 'FACEBOOK_OAUTH_CODE') {
+          // Exchange code for tokens via our edge function
+          try {
+            const callbackResponse = await supabase.functions.invoke('facebook-oauth', {
+              body: { 
+                action: 'handleCallback',
+                code: event.data.code,
+                state: event.data.state
+              },
+              headers: {
+                Authorization: `Bearer ${session.access_token}`
+              }
+            });
+
+            if (callbackResponse.error) throw callbackResponse.error;
+
+            await loadSocialConnections();
+            toast({
+              title: "Connected to Facebook",
+              description: `Successfully connected ${callbackResponse.data.pages?.length || 0} Facebook pages.`,
+            });
+          } catch (error) {
+            console.error('Callback processing error:', error);
+            toast({
+              title: "Connection Failed",
+              description: "Failed to process Facebook connection",
+              variant: "destructive",
+            });
+          }
           window.removeEventListener('message', handleMessage);
           setConnecting(null);
         } else if (event.data.type === 'FACEBOOK_OAUTH_ERROR') {

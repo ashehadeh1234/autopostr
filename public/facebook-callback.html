@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Facebook OAuth Callback</title>
+</head>
+<body>
+    <script>
+        // Extract code and state from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const state = urlParams.get('state');
+        const error = urlParams.get('error');
+        const errorDescription = urlParams.get('error_description');
+
+        if (error) {
+            // Send error to parent window
+            window.opener?.postMessage({
+                type: 'FACEBOOK_OAUTH_ERROR',
+                error: errorDescription || error
+            }, window.location.origin);
+        } else if (code) {
+            // Send code to parent window for processing
+            window.opener?.postMessage({
+                type: 'FACEBOOK_OAUTH_CODE',
+                code: code,
+                state: state
+            }, window.location.origin);
+        } else {
+            // No code or error - something went wrong
+            window.opener?.postMessage({
+                type: 'FACEBOOK_OAUTH_ERROR',
+                error: 'No authorization code received'
+            }, window.location.origin);
+        }
+
+        // Close the popup
+        window.close();
+    </script>
+</body>
+</html>
