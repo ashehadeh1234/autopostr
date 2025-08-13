@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
         throw new Error('Facebook credentials not configured')
       }
 
-      const redirectUri = `${Deno.env.get('SUPABASE_URL')}/auth/v1/callback`
+      const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/facebook-callback`
       
       // Get access token with timeout and error handling
       const tokenController = new AbortController()
