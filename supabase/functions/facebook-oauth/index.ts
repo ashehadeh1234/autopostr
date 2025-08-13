@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
         throw new Error('Facebook App ID not configured')
       }
 
-      const redirectUri = `${Deno.env.get('SUPABASE_URL')}/auth/v1/callback`
+      const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/facebook-callback`
       const scope = 'pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_engagement'
       const stateParam = btoa(JSON.stringify({ userId: user.id, timestamp: Date.now() }))
       
