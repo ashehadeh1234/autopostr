@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Upload, 
   Grid3X3, 
@@ -16,7 +17,10 @@ import {
   Copy,
   Trash2,
   Edit,
-  RotateCcw
+  RotateCcw,
+  CheckSquare,
+  Square,
+  X
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -30,11 +34,23 @@ import { MediaViewer } from "@/components/MediaViewer";
 import { useAssets } from "@/hooks/useAssets";
 
 const Library = () => {
-  const { assets, loading, uploadFile, deleteAsset, toggleRotation, copyUrl } = useAssets();
+  const { 
+    assets, 
+    loading, 
+    uploadFile, 
+    deleteAsset, 
+    toggleRotation, 
+    copyUrl,
+    deleteMultipleAssets,
+    toggleMultipleRotation,
+    copyMultipleUrls
+  } = useAssets();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
 
   const handleFileSelect = async (files: FileList) => {
     console.log(`Starting upload of ${files.length} files`);
@@ -63,6 +79,67 @@ const Library = () => {
   const filteredAssets = assets.filter(asset =>
     asset.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Selection management functions
+  const toggleSelection = (assetId: string) => {
+    const newSelected = new Set(selectedAssets);
+    if (newSelected.has(assetId)) {
+      newSelected.delete(assetId);
+    } else {
+      newSelected.add(assetId);
+    }
+    setSelectedAssets(newSelected);
+  };
+
+  const selectAll = () => {
+    setSelectedAssets(new Set(filteredAssets.map(asset => asset.id)));
+  };
+
+  const clearSelection = () => {
+    setSelectedAssets(new Set());
+  };
+
+  const exitSelectionMode = () => {
+    setIsSelectionMode(false);
+    clearSelection();
+  };
+
+  // Bulk operations
+  const handleBulkDelete = async () => {
+    if (selectedAssets.size === 0) return;
+    if (!confirm(`Delete ${selectedAssets.size} selected assets?`)) return;
+    
+    const assetIds = Array.from(selectedAssets);
+    await deleteMultipleAssets(assetIds);
+    clearSelection();
+  };
+
+  const handleBulkToggleRotation = async (enable: boolean) => {
+    if (selectedAssets.size === 0) return;
+    
+    const assetIds = Array.from(selectedAssets);
+    await toggleMultipleRotation(assetIds, enable);
+    clearSelection();
+  };
+
+  const handleBulkCopyUrls = () => {
+    if (selectedAssets.size === 0) return;
+    
+    const selectedAssetObjects = filteredAssets.filter(asset => selectedAssets.has(asset.id));
+    copyMultipleUrls(selectedAssetObjects);
+  };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isSelectionMode) {
+        exitSelectionMode();
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, [isSelectionMode]);
 
   const getFileIcon = (type: string) => {
     if (type.startsWith('image/')) return <Image className="w-4 h-4" />;
@@ -111,6 +188,14 @@ const Library = () => {
             <Filter className="w-4 h-4 mr-2" />
             Filter
           </Button>
+          <Button 
+            variant={isSelectionMode ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setIsSelectionMode(!isSelectionMode)}
+          >
+            <CheckSquare className="w-4 h-4 mr-2" />
+            Select
+          </Button>
         </div>
         
         <div className="flex items-center space-x-2">
@@ -130,6 +215,69 @@ const Library = () => {
           </Button>
         </div>
       </div>
+
+      {/* Bulk Actions Toolbar */}
+      {isSelectionMode && (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="p-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+              <div className="flex items-center space-x-4">
+                <span className="text-sm font-medium">
+                  {selectedAssets.size} selected
+                </span>
+                <Button variant="outline" size="sm" onClick={selectAll}>
+                  Select All ({filteredAssets.length})
+                </Button>
+                <Button variant="outline" size="sm" onClick={clearSelection}>
+                  Clear Selection
+                </Button>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleBulkCopyUrls}
+                  disabled={selectedAssets.size === 0}
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy URLs
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => handleBulkToggleRotation(true)}
+                  disabled={selectedAssets.size === 0}
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Add to Rotation
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => handleBulkToggleRotation(false)}
+                  disabled={selectedAssets.size === 0}
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Remove from Rotation
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={handleBulkDelete}
+                  disabled={selectedAssets.size === 0}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete ({selectedAssets.size})
+                </Button>
+                <Button variant="ghost" size="sm" onClick={exitSelectionMode}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Loading State */}
       {loading && (
@@ -159,12 +307,23 @@ const Library = () => {
       {!loading && viewMode === 'grid' && filteredAssets.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {filteredAssets.map((asset) => (
-             <Card key={asset.id} className="group hover:shadow-medium transition-smooth">
+             <Card key={asset.id} className={`group hover:shadow-medium transition-smooth ${selectedAssets.has(asset.id) ? 'ring-2 ring-primary' : ''}`}>
                <CardContent className="p-4 space-y-3">
+                  {/* Selection Checkbox */}
+                  {isSelectionMode && (
+                    <div className="absolute top-2 left-2 z-10">
+                      <Checkbox
+                        checked={selectedAssets.has(asset.id)}
+                        onCheckedChange={() => toggleSelection(asset.id)}
+                        className="bg-background"
+                      />
+                    </div>
+                  )}
+                  
                   {/* Thumbnail */}
                   <div 
-                    className="aspect-square bg-secondary rounded-lg overflow-hidden flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
-                    onClick={() => handleAssetClick(asset)}
+                    className="aspect-square bg-secondary rounded-lg overflow-hidden flex items-center justify-center cursor-pointer hover:scale-105 transition-transform relative"
+                    onClick={() => isSelectionMode ? toggleSelection(asset.id) : handleAssetClick(asset)}
                   >
                     {asset.type.startsWith('image/') ? (
                       <img 
@@ -255,11 +414,19 @@ const Library = () => {
         <Card>
           <CardContent className="p-0">
             <div className="divide-y">
-              {filteredAssets.map((asset) => (
-                 <div key={asset.id} className="p-4 flex items-center space-x-4 hover:bg-secondary/30 transition-colors">
+               {filteredAssets.map((asset) => (
+                 <div key={asset.id} className={`p-4 flex items-center space-x-4 hover:bg-secondary/30 transition-colors ${selectedAssets.has(asset.id) ? 'bg-primary/10' : ''}`}>
+                   {/* Selection Checkbox */}
+                   {isSelectionMode && (
+                     <Checkbox
+                       checked={selectedAssets.has(asset.id)}
+                       onCheckedChange={() => toggleSelection(asset.id)}
+                     />
+                   )}
+                   
                    <div 
                      className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
-                     onClick={() => handleAssetClick(asset)}
+                     onClick={() => isSelectionMode ? toggleSelection(asset.id) : handleAssetClick(asset)}
                    >
                      {getFileIcon(asset.type)}
                    </div>

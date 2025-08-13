@@ -176,6 +176,83 @@ export const useAssets = () => {
     fetchAssets();
   }, [user]);
 
+  const deleteMultipleAssets = async (assetIds: string[]) => {
+    try {
+      // Get assets for storage cleanup
+      const assetsToDelete = assets.filter(asset => assetIds.includes(asset.id));
+      
+      // Delete from storage
+      const storagePaths = assetsToDelete.map(asset => asset.storage_path);
+      const { error: storageError } = await supabase.storage
+        .from("user-assets")
+        .remove(storagePaths);
+
+      if (storageError) throw storageError;
+
+      // Delete from database
+      const { error: dbError } = await supabase
+        .from("assets")
+        .delete()
+        .in("id", assetIds);
+
+      if (dbError) throw dbError;
+
+      // Update local state
+      setAssets(prev => prev.filter(asset => !assetIds.includes(asset.id)));
+      
+      toast({
+        title: "Success",
+        description: `${assetIds.length} assets deleted successfully`,
+      });
+    } catch (error) {
+      console.error("Error deleting multiple assets:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete assets",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleMultipleRotation = async (assetIds: string[], enable: boolean) => {
+    try {
+      const { data, error } = await supabase
+        .from("assets")
+        .update({ rotation_enabled: enable })
+        .in("id", assetIds)
+        .select();
+
+      if (error) throw error;
+
+      // Update local state
+      setAssets(prev => prev.map(asset => {
+        const updatedAsset = data?.find(d => d.id === asset.id);
+        return updatedAsset || asset;
+      }));
+      
+      toast({
+        title: "Success",
+        description: `Rotation ${enable ? 'enabled' : 'disabled'} for ${assetIds.length} assets`,
+      });
+    } catch (error) {
+      console.error("Error toggling multiple rotation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update rotation settings",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const copyMultipleUrls = (assets: Asset[]) => {
+    const urls = assets.map(asset => asset.url).join('\n');
+    navigator.clipboard.writeText(urls);
+    toast({
+      title: "Success",
+      description: `${assets.length} URLs copied to clipboard`,
+    });
+  };
+
   return {
     assets,
     loading,
@@ -183,6 +260,9 @@ export const useAssets = () => {
     deleteAsset,
     toggleRotation,
     copyUrl,
+    deleteMultipleAssets,
+    toggleMultipleRotation,
+    copyMultipleUrls,
     refetch: fetchAssets,
   };
 };
