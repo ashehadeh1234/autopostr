@@ -39,6 +39,15 @@ verify_jwt = false
 [functions.facebook-post]
 verify_jwt = true
 
+[functions.fb-exchange-user-token]
+verify_jwt = true
+
+[functions.fb-pages]
+verify_jwt = true
+
+[functions.fb-select-page]
+verify_jwt = true
+
 [storage]
 enabled = true
 port = 54328

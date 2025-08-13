@@ -20,6 +20,23 @@ import {
   Settings
 } from "lucide-react";
 
+// Helper function for Facebook OAuth using Supabase Auth
+async function connectFacebook() {
+  await supabase.auth.signInWithOAuth({
+    provider: 'facebook',
+    options: {
+      redirectTo: `${window.location.origin}/app/connections`,
+      scopes: [
+        'public_profile','email',
+        'pages_show_list',
+        'pages_manage_posts','pages_manage_metadata',
+        'pages_read_engagement','pages_read_user_content',
+        'pages_manage_engagement'
+      ].join(',')
+    }
+  });
+}
+
 interface Connection {
   id: string;
   name: string;
@@ -102,13 +119,100 @@ export default function Connections() {
   const [socialConnections, setSocialConnections] = useState<SocialConnection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionProgress, setConnectionProgress] = useState('');
 
   // Load social connections from database
   useEffect(() => {
     if (user) {
       loadSocialConnections();
+      
+      // Check if we just returned from Facebook OAuth
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('code') && urlParams.get('provider') === 'facebook') {
+        handleFacebookOAuthCallback();
+      }
     }
   }, [user]);
+
+  const handleFacebookOAuthCallback = async () => {
+    setIsConnecting(true);
+    setConnectionProgress('Processing Facebook connection...');
+    
+    try {
+      // Exchange the provider token for a long-lived token
+      const { data: tokenData, error: tokenError } = await supabase.functions.invoke('fb-exchange-user-token', {
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`
+        }
+      });
+
+      if (tokenError) throw tokenError;
+
+      setConnectionProgress('Fetching Facebook pages...');
+      
+      // Get user's Facebook pages
+      const { data: pagesData, error: pagesError } = await supabase.functions.invoke('fb-pages', {
+        body: { access_token: tokenData.access_token },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`
+        }
+      });
+
+      if (pagesError) throw pagesError;
+
+      // For now, automatically connect the first page
+      // TODO: Show page selection UI
+      if (pagesData.pages && pagesData.pages.length > 0) {
+        const firstPage = pagesData.pages[0];
+        
+        setConnectionProgress('Connecting page...');
+        
+        // Get user's workspace
+        const { data: workspaces } = await supabase
+          .from('workspaces')
+          .select('id')
+          .limit(1);
+        
+        if (workspaces && workspaces.length > 0) {
+          const { error: selectError } = await supabase.functions.invoke('fb-select-page', {
+            body: {
+              pageId: firstPage.id,
+              pageName: firstPage.name,
+              pageAccessToken: firstPage.access_token,
+              igUserId: firstPage.instagram_business_account?.id,
+              workspaceId: workspaces[0].id
+            },
+            headers: {
+              Authorization: `Bearer ${session?.access_token}`
+            }
+          });
+
+          if (selectError) throw selectError;
+        }
+      }
+
+      await loadSocialConnections();
+      toast({
+        title: "Success",
+        description: "Facebook account connected successfully!",
+      });
+      
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+    } catch (error: any) {
+      console.error('Facebook OAuth callback error:', error);
+      toast({
+        title: "Error",
+        description: error.details || error.message || 'Failed to connect Facebook account',
+        variant: "destructive",
+      });
+    } finally {
+      setIsConnecting(false);
+      setConnectionProgress('');
+    }
+  };
 
   const loadSocialConnections = async () => {
     try {
@@ -152,15 +256,23 @@ export default function Connections() {
 
   const handleConnect = async (connectionId: string) => {
     const connection = connections.find(c => c.id === connectionId);
-    if (!connection || !session?.access_token) return;
+    if (!connection) return;
 
     if (connection.platform === 'facebook') {
       if (connection.connected) {
         // Disconnect - remove all Facebook page connections
         await handleDisconnect(connectionId);
       } else {
-        // Connect - start Facebook OAuth flow
-        await handleFacebookConnect();
+        // Connect - start Facebook OAuth flow using Supabase Auth
+        try {
+          await connectFacebook();
+        } catch (error: any) {
+          toast({
+            title: "Connection Failed",
+            description: error.message || "Failed to connect to Facebook",
+            variant: "destructive",
+          });
+        }
       }
     } else {
       // For other platforms, show coming soon message
