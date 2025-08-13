@@ -196,6 +196,10 @@ export type Database = {
         Args: { workspace_id_param: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      is_workspace_member: {
+        Args: { workspace_id_param: string; user_id_param?: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "owner" | "staff"

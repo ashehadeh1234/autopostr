@@ -29,10 +29,46 @@ Deno.serve(async (req) => {
       throw new Error('Invalid or expired token')
     }
 
-    const { pageId, message, imageUrl, linkUrl } = await req.json()
+    const requestBody = await req.json()
+    const { pageId, message, imageUrl, linkUrl } = requestBody
 
-    if (!pageId || !message) {
-      throw new Error('Page ID and message are required')
+    // Input validation
+    if (!pageId || typeof pageId !== 'string' || pageId.length > 255) {
+      throw new Error('Invalid page ID')
+    }
+
+    if (message && (typeof message !== 'string' || message.length > 63206)) {
+      throw new Error('Message too long (max 63,206 characters)')
+    }
+
+    if (imageUrl && (typeof imageUrl !== 'string' || imageUrl.length > 2000)) {
+      throw new Error('Invalid image URL')
+    }
+
+    if (linkUrl && (typeof linkUrl !== 'string' || linkUrl.length > 2000)) {
+      throw new Error('Invalid link URL')
+    }
+
+    // Validate URL format for imageUrl and linkUrl
+    if (imageUrl) {
+      try {
+        new URL(imageUrl)
+      } catch {
+        throw new Error('Invalid image URL format')
+      }
+    }
+
+    if (linkUrl) {
+      try {
+        new URL(linkUrl)
+      } catch {
+        throw new Error('Invalid link URL format')
+      }
+    }
+
+    // At least one content type must be provided
+    if (!message && !imageUrl && !linkUrl) {
+      throw new Error('At least one content type (message, image, or link) must be provided')
     }
 
     // Get the connection for this page
@@ -49,15 +85,25 @@ Deno.serve(async (req) => {
       throw new Error('Facebook page connection not found or inactive')
     }
 
-    // Check if token is expired
-    if (connection.token_expires_at && new Date(connection.token_expires_at) < new Date()) {
-      throw new Error('Facebook access token has expired. Please reconnect your account.')
+    // Check if token is expired (with 5 minute buffer)
+    if (connection.token_expires_at) {
+      const expirationTime = new Date(connection.token_expires_at).getTime()
+      const currentTime = Date.now()
+      const bufferTime = 5 * 60 * 1000 // 5 minutes in milliseconds
+      
+      if (expirationTime - bufferTime < currentTime) {
+        throw new Error('Facebook access token has expired. Please reconnect your account.')
+      }
     }
 
-    // Prepare post data
+    // Prepare post data with sanitization
     const postData: any = {
-      message: message,
       access_token: connection.page_access_token
+    }
+
+    if (message) {
+      // Sanitize message content (remove potential harmful characters)
+      postData.message = message.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim()
     }
 
     // Add image if provided
@@ -70,23 +116,46 @@ Deno.serve(async (req) => {
       postData.link = linkUrl
     }
 
-    // Post to Facebook
-    const response = await fetch(`https://graph.facebook.com/v18.0/${pageId}/feed`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(postData)
-    })
+    // Add request timeout and abort controller
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 30000) // 30 second timeout
 
-    const result = await response.json()
+    let result: any
+    try {
+      // Post to Facebook
+      const response = await fetch(`https://graph.facebook.com/v18.0/${pageId}/feed`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(postData),
+        signal: controller.signal
+      })
 
-    if (result.error) {
-      throw new Error(`Facebook API error: ${result.error.message}`)
+      clearTimeout(timeout)
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Facebook API error:', errorData)
+        throw new Error(`Facebook API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`)
+      }
+
+      result = await response.json()
+
+      // Validate response format
+      if (!result.id) {
+        throw new Error('Invalid response from Facebook API')
+      }
+
+      // Log successful post (without sensitive data)
+      console.log(`Successfully posted to Facebook page ${connection.page_name} (${pageId}):`, { postId: result.id })
+    } catch (error) {
+      clearTimeout(timeout)
+      if (error.name === 'AbortError') {
+        throw new Error('Facebook API request timeout')
+      }
+      throw error
     }
-
-    // Log successful post
-    console.log(`Successfully posted to Facebook page ${connection.page_name} (${pageId}):`, result)
 
     return new Response(JSON.stringify({ 
       success: true,
