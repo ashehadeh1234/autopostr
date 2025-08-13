@@ -276,6 +276,44 @@ const PrivacyPolicy = () => {
             </div>
           </section>
 
+          {/* Data Deletion Requests */}
+          <section className="space-y-6">
+            <div className="flex items-center space-x-3">
+              <FileText className="w-6 h-6 text-primary" />
+              <h2 className="text-2xl font-semibold">Data Deletion Requests</h2>
+            </div>
+            
+            <div className="space-y-4">
+              <p className="text-muted-foreground">
+                You have the right to request deletion of your personal data at any time. To request deletion 
+                of your account and all associated data:
+              </p>
+              
+              <div className="bg-secondary/50 rounded-lg p-6 space-y-4">
+                <div>
+                  <strong>Data Deletion URL:</strong> 
+                  <a href="mailto:privacy@autopostr.com?subject=Data%20Deletion%20Request&body=I%20request%20deletion%20of%20my%20account%20and%20all%20associated%20data.%20My%20account%20email:%20" 
+                     className="text-primary hover:underline ml-2">
+                    privacy@autopostr.com
+                  </a>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  <strong>What happens when you request deletion:</strong>
+                  <ul className="mt-2 space-y-1 ml-4">
+                    <li>• Your account will be permanently deleted</li>
+                    <li>• All uploaded content and files will be removed</li>
+                    <li>• Social media connections will be disconnected</li>
+                    <li>• All personal data will be permanently erased within 30 days</li>
+                  </ul>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  <strong>Note:</strong> Some data may be retained in anonymized form for analytics purposes 
+                  or as required by law.
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* Contact Information */}
           <section className="space-y-6">
             <div className="flex items-center space-x-3">
