@@ -128,7 +128,7 @@ const Library = () => {
               <p className="text-muted-foreground mb-4">
                 Drag & drop to upload or paste links to get started
               </p>
-              <FileUpload onFileSelect={handleFileSelect} />
+              <FileUpload onFileSelect={handleFileSelect} multiple={true} />
             </div>
           </CardContent>
         </Card>
