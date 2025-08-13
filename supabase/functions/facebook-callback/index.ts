@@ -134,6 +134,7 @@ Deno.serve(async (req) => {
     }
 
     // Get long-lived user access token
+    console.log('Requesting long-lived token...')
     const longLivedResponse = await fetch(`https://graph.facebook.com/v18.0/oauth/access_token?` +
       `grant_type=fb_exchange_token&` +
       `client_id=${facebookAppId}&` +
@@ -141,18 +142,68 @@ Deno.serve(async (req) => {
       `fb_exchange_token=${tokenData.access_token}`)
     
     const longLivedData = await longLivedResponse.json()
+    console.log('Long-lived token response:', longLivedData)
+    
+    if (longLivedData.error) {
+      console.error('Long-lived token error:', longLivedData.error)
+    }
+    
     const userAccessToken = longLivedData.access_token || tokenData.access_token
+    console.log('Using access token (first 20 chars):', userAccessToken.substring(0, 20) + '...')
 
-    // Get user info
-    const userResponse = await fetch(`https://graph.facebook.com/v18.0/me?access_token=${userAccessToken}`)
+    // Get user info with detailed fields
+    console.log('Fetching user data...')
+    const userResponse = await fetch(`https://graph.facebook.com/v18.0/me?fields=id,name,email&access_token=${userAccessToken}`)
     const userData = await userResponse.json()
+    console.log('User API response status:', userResponse.status)
+    console.log('User data response:', userData)
+    
+    if (userData.error) {
+      console.error('User data error:', userData.error)
+    }
 
-    // Get user's pages
-    const pagesResponse = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${userAccessToken}`)
+    // Get user's pages with detailed debugging
+    console.log('Fetching pages data...')
+    const pagesResponse = await fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token,perms,tasks&access_token=${userAccessToken}`)
     const pagesData = await pagesResponse.json()
+    
+    console.log('Pages API response status:', pagesResponse.status)
+    console.log('Pages API response headers:', Object.fromEntries(pagesResponse.headers))
+    console.log('Full pages response:', JSON.stringify(pagesData, null, 2))
+    
+    if (pagesData.error) {
+      console.error('Pages API error:', pagesData.error)
+      console.error('Error details:', {
+        message: pagesData.error.message,
+        type: pagesData.error.type,
+        code: pagesData.error.code,
+        error_subcode: pagesData.error.error_subcode,
+        fbtrace_id: pagesData.error.fbtrace_id
+      })
+    }
+    
+    // Check if pages array exists and its length
+    if (pagesData.data) {
+      console.log('Pages found:', pagesData.data.length)
+      pagesData.data.forEach((page, index) => {
+        console.log(`Page ${index + 1}:`, {
+          id: page.id,
+          name: page.name,
+          hasAccessToken: !!page.access_token,
+          permissions: page.perms || [],
+          tasks: page.tasks || []
+        })
+      })
+    } else {
+      console.log('No pages data array found in response')
+    }
 
     console.log('User data:', userData)
-    console.log('Pages data:', pagesData)
+    console.log('Pages data summary:', { 
+      hasData: !!pagesData.data, 
+      pageCount: pagesData.data?.length || 0,
+      error: pagesData.error ? 'YES' : 'NO'
+    })
 
     // Store connections for each page
     const connections = []
