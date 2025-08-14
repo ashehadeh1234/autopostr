@@ -8,12 +8,11 @@ export interface Schedule {
   user_id: string;
   name: string;
   description?: string;
-  days_of_week: number[];
-  times: string[];
-  timezone: string;
+  interval_value: number;
+  interval_unit: 'minutes' | 'hours' | 'days';
+  time_between_posts: number;
+  time_between_unit: 'seconds' | 'minutes' | 'hours';
   is_active: boolean;
-  n8n_workflow_id?: string;
-  webhook_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -21,11 +20,10 @@ export interface Schedule {
 export interface ScheduleFormData {
   name: string;
   description?: string;
-  days_of_week: number[];
-  times: string[];
-  timezone: string;
-  webhook_url?: string;
-  n8n_workflow_id?: string;
+  interval_value: number;
+  interval_unit: 'minutes' | 'hours' | 'days';
+  time_between_posts: number;
+  time_between_unit: 'seconds' | 'minutes' | 'hours';
 }
 
 export const useSchedules = () => {
@@ -66,10 +64,6 @@ export const useSchedules = () => {
 
       if (error) throw error;
       
-      // Trigger n8n workflow sync if webhook URL is provided
-      if (scheduleData.webhook_url) {
-        await triggerN8nSync(data.id, scheduleData);
-      }
       
       return data;
     },
@@ -90,10 +84,6 @@ export const useSchedules = () => {
 
       if (error) throw error;
       
-      // Trigger n8n workflow sync if webhook URL is provided
-      if (scheduleData.webhook_url) {
-        await triggerN8nSync(id, scheduleData);
-      }
       
       return data;
     },
@@ -136,23 +126,6 @@ export const useSchedules = () => {
     },
   });
 
-  // Helper function to trigger n8n workflow sync
-  const triggerN8nSync = async (scheduleId: string, scheduleData: ScheduleFormData) => {
-    try {
-      const response = await supabase.functions.invoke('sync-schedule-with-n8n', {
-        body: {
-          scheduleId,
-          scheduleData,
-        },
-      });
-
-      if (response.error) {
-        console.error('Failed to sync with n8n:', response.error);
-      }
-    } catch (error) {
-      console.error('Error syncing with n8n:', error);
-    }
-  };
 
   return {
     schedules,

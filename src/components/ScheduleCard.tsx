@@ -78,19 +78,6 @@ export const ScheduleCard = ({ schedule, onEdit, onDelete, onToggle }: ScheduleC
                     </>
                   )}
                 </DropdownMenuItem>
-                {schedule.webhook_url && (
-                  <DropdownMenuItem asChild>
-                    <a 
-                      href={schedule.webhook_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center"
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      View Webhook
-                    </a>
-                  </DropdownMenuItem>
-                )}
                 <DropdownMenuItem 
                   onClick={() => onDelete(schedule.id)}
                   className="text-destructive"
@@ -106,36 +93,24 @@ export const ScheduleCard = ({ schedule, onEdit, onDelete, onToggle }: ScheduleC
       
       <CardContent className="space-y-4">
         <div className="flex items-center gap-2 text-sm">
-          <Calendar className="w-4 h-4 text-muted-foreground" />
-          <span className="text-muted-foreground">Days:</span>
-          <span className="text-foreground font-medium">
-            {formatDays(schedule.days_of_week)}
-          </span>
-        </div>
-        
-        <div className="flex items-center gap-2 text-sm">
           <Clock className="w-4 h-4 text-muted-foreground" />
-          <span className="text-muted-foreground">Times:</span>
+          <span className="text-muted-foreground">Interval:</span>
           <span className="text-foreground font-medium">
-            {formatTimes(schedule.times)}
+            Every {schedule.interval_value} {schedule.interval_unit}
           </span>
         </div>
         
         <div className="flex items-center gap-2 text-sm">
-          <Globe className="w-4 h-4 text-muted-foreground" />
-          <span className="text-muted-foreground">Timezone:</span>
+          <Calendar className="w-4 h-4 text-muted-foreground" />
+          <span className="text-muted-foreground">Time between posts:</span>
           <span className="text-foreground font-medium">
-            {schedule.timezone}
+            {schedule.time_between_posts > 0 
+              ? `${schedule.time_between_posts} ${schedule.time_between_unit}`
+              : 'No delay'
+            }
           </span>
         </div>
 
-        {schedule.n8n_workflow_id && (
-          <div className="mt-3 p-2 bg-muted rounded-md">
-            <p className="text-xs text-muted-foreground">
-              n8n Workflow: <span className="font-mono">{schedule.n8n_workflow_id}</span>
-            </p>
-          </div>
-        )}
         
         <div className="text-xs text-muted-foreground pt-2 border-t border-border">
           Created: {new Date(schedule.created_at).toLocaleDateString()}

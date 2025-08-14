@@ -99,7 +99,7 @@ const Schedule = () => {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Posting Schedules</h1>
           <p className="text-muted-foreground mt-2">
-            Manage your automated posting schedules and sync with n8n workflows
+            Set up automated posting intervals and manage trigger timing
           </p>
         </div>
         <Button 
@@ -138,7 +138,7 @@ const Schedule = () => {
             <Calendar className="w-16 h-16 text-muted-foreground mb-4" />
             <h3 className="text-xl font-semibold text-foreground mb-2">No schedules yet</h3>
             <p className="text-muted-foreground mb-6 max-w-md">
-              Create your first posting schedule to automate your content distribution across social platforms.
+              Create your first trigger schedule to automate your content posting intervals.
             </p>
             <Button 
               onClick={() => setShowForm(true)}
@@ -167,26 +167,26 @@ const Schedule = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-primary">
             <Clock className="w-5 h-5" />
-            n8n Integration Guide
+            Schedule Trigger Guide
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="bg-card rounded-lg p-4 border border-border">
-            <h4 className="font-semibold text-foreground mb-2">1. Set up your n8n workflow</h4>
+            <h4 className="font-semibold text-foreground mb-2">1. Set trigger interval</h4>
             <p className="text-muted-foreground text-sm">
-              Create a workflow with a webhook trigger and add the webhook URL to your schedule settings.
+              Define how often the posting trigger should run (minutes, hours, or days).
             </p>
           </div>
           <div className="bg-card rounded-lg p-4 border border-border">
-            <h4 className="font-semibold text-foreground mb-2">2. Configure schedule timing</h4>
+            <h4 className="font-semibold text-foreground mb-2">2. Configure time between posts</h4>
             <p className="text-muted-foreground text-sm">
-              Set your desired posting days and times. The system will automatically trigger your n8n workflow.
+              Set the delay between individual posts when multiple posts are scheduled.
             </p>
           </div>
           <div className="bg-card rounded-lg p-4 border border-border">
-            <h4 className="font-semibold text-foreground mb-2">3. Monitor execution</h4>
+            <h4 className="font-semibold text-foreground mb-2">3. Activate schedule</h4>
             <p className="text-muted-foreground text-sm">
-              Track your schedule executions and view the status of each automated post.
+              Turn your schedule on/off and monitor when the next trigger will execute.
             </p>
           </div>
         </CardContent>
