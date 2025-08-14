@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, Send, Image, Video, FileText, Sparkles, Calendar, Library, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAssets } from "@/hooks/useAssets";
+import { useNavigate } from "react-router-dom";
 import SpeechRecorder from "@/components/SpeechRecorder";
 const Chat = () => {
   const [message, setMessage] = useState("");
@@ -18,6 +19,7 @@ const Chat = () => {
   const {
     uploadFile
   } = useAssets();
+  const navigate = useNavigate();
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
@@ -124,16 +126,12 @@ const Chat = () => {
     title: "Add to Library",
     description: "Save content for future automated posting",
     icon: Library,
-    action: () => toast({
-      title: "Feature coming soon!"
-    })
+    action: () => navigate('/app/library')
   }, {
     title: "Create Schedule",
     description: "Set up automated posting times",
     icon: Calendar,
-    action: () => toast({
-      title: "Feature coming soon!"
-    })
+    action: () => navigate('/app/schedule')
   }];
   return <div className="h-full flex">
       {/* Main Chat Area */}
