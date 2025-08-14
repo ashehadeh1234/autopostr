@@ -9,6 +9,7 @@ interface SpeechRecorderProps {
 }
 
 const SpeechRecorder = ({ onTranscription }: SpeechRecorderProps) => {
+  console.log("SpeechRecorder component mounted"); // Debug log
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);

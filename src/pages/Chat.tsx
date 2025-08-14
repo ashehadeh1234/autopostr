@@ -120,6 +120,7 @@ const Chat = () => {
   };
 
   const handleTranscription = (text: string) => {
+    console.log("Transcription received:", text); // Debug log
     setMessage(prev => prev ? `${prev} ${text}` : text);
   };
 
