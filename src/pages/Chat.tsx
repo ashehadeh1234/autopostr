@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAssets } from "@/hooks/useAssets";
+import SpeechRecorder from "@/components/SpeechRecorder";
 
 const Chat = () => {
   const [message, setMessage] = useState("");
@@ -118,6 +119,10 @@ const Chat = () => {
     }
   };
 
+  const handleTranscription = (text: string) => {
+    setMessage(prev => prev ? `${prev} ${text}` : text);
+  };
+
   const quickActions = [
     {
       title: "Upload & Post Now",
@@ -196,8 +201,8 @@ const Chat = () => {
                 disabled={isLoading}
               />
             </div>
-            {/* Small Upload Button under chatbox */}
-            <div className="flex items-center">
+            {/* Upload and Record Buttons */}
+            <div className="flex items-center space-x-2">
               <input
                 type="file"
                 multiple
@@ -216,6 +221,8 @@ const Chat = () => {
                 <Upload className="w-4 h-4 mr-2" />
                 Upload file
               </Button>
+              
+              <SpeechRecorder onTranscription={handleTranscription} />
             </div>
             <div className="flex justify-between items-center">
               <p className="text-sm text-muted-foreground">
