@@ -45,19 +45,70 @@ export const useAssets = () => {
     }
   };
 
+  const resizeImage = (file: File, maxSizeMB: number = 7): Promise<File> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions to keep aspect ratio
+        let { width, height } = img;
+        const maxDimension = 2048; // Max width/height
+        
+        if (width > height && width > maxDimension) {
+          height = (height * maxDimension) / width;
+          width = maxDimension;
+        } else if (height > maxDimension) {
+          width = (width * maxDimension) / height;
+          height = maxDimension;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Convert to blob with compression
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const resizedFile = new File([blob], file.name, {
+                type: file.type,
+                lastModified: Date.now(),
+              });
+              resolve(resizedFile);
+            } else {
+              resolve(file);
+            }
+          },
+          file.type,
+          0.8 // 80% quality
+        );
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const uploadFile = async (file: File): Promise<Asset | null> => {
     if (!user) return null;
 
     try {
+      // Resize image if it's an image file and larger than 7MB
+      let fileToUpload = file;
+      if (file.type.startsWith('image/') && file.size > 7 * 1024 * 1024) {
+        fileToUpload = await resizeImage(file);
+      }
+
       // Create unique file path
-      const fileExt = file.name.split('.').pop();
+      const fileExt = fileToUpload.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
 
       // Upload file to storage
       const { error: uploadError } = await supabase.storage
         .from("user-assets")
-        .upload(filePath, file);
+        .upload(filePath, fileToUpload);
 
       if (uploadError) throw uploadError;
 
