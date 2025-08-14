@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Plus, X } from 'lucide-react';
+import { Clock } from 'lucide-react';
 
 const scheduleFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),

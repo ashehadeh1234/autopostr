@@ -160,45 +160,42 @@ export type Database = {
       schedules: {
         Row: {
           created_at: string
-          days_of_week: number[]
           description: string | null
           id: string
+          interval_unit: string
+          interval_value: number
           is_active: boolean
-          n8n_workflow_id: string | null
           name: string
-          times: string[]
-          timezone: string
+          time_between_posts: number
+          time_between_unit: string
           updated_at: string
           user_id: string
-          webhook_url: string | null
         }
         Insert: {
           created_at?: string
-          days_of_week?: number[]
           description?: string | null
           id?: string
+          interval_unit?: string
+          interval_value?: number
           is_active?: boolean
-          n8n_workflow_id?: string | null
           name: string
-          times?: string[]
-          timezone?: string
+          time_between_posts?: number
+          time_between_unit?: string
           updated_at?: string
           user_id: string
-          webhook_url?: string | null
         }
         Update: {
           created_at?: string
-          days_of_week?: number[]
           description?: string | null
           id?: string
+          interval_unit?: string
+          interval_value?: number
           is_active?: boolean
-          n8n_workflow_id?: string | null
           name?: string
-          times?: string[]
-          timezone?: string
+          time_between_posts?: number
+          time_between_unit?: string
           updated_at?: string
           user_id?: string
-          webhook_url?: string | null
         }
         Relationships: []
       }

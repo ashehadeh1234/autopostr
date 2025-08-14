@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Clock, Calendar, Globe, MoreVertical, Edit, Trash2, Play, Pause, ExternalLink } from 'lucide-react';
+import { Clock, Calendar, MoreVertical, Edit, Trash2, Play, Pause } from 'lucide-react';
 import { Schedule } from '@/hooks/useSchedules';
 
 interface ScheduleCardProps {
@@ -12,22 +12,7 @@ interface ScheduleCardProps {
   onToggle: (id: string, isActive: boolean) => void;
 }
 
-const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
 export const ScheduleCard = ({ schedule, onEdit, onDelete, onToggle }: ScheduleCardProps) => {
-  const formatTimes = (times: string[]) => {
-    return times.map(time => {
-      const [hours, minutes] = time.split(':');
-      const hour = parseInt(hours);
-      const ampm = hour >= 12 ? 'PM' : 'AM';
-      const displayHour = hour % 12 || 12;
-      return `${displayHour}:${minutes} ${ampm}`;
-    }).join(', ');
-  };
-
-  const formatDays = (days: number[]) => {
-    return days.sort().map(day => DAYS_OF_WEEK[day]).join(', ');
-  };
 
   return (
     <Card className={`shadow-soft transition-all hover:shadow-medium ${
