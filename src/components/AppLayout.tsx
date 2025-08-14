@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navigationItems = [
-  { title: "Chat", url: "/app/chat", icon: MessageSquare },
+  { title: "Post Now", url: "/app/chat", icon: MessageSquare },
   { title: "Library", url: "/app/library", icon: FolderOpen },
   { title: "Connections", url: "/app/connections", icon: LinkIcon },
   { title: "Schedule", url: "/app/schedule", icon: Calendar },
