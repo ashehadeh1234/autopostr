@@ -183,7 +183,7 @@ const Chat = () => {
           <div className="w-full space-y-3">
             <div className="flex space-x-4">
               <Textarea
-                placeholder="What would you like me to help you with? (e.g., 'Create captions for these images' or 'Schedule these posts for this week')"
+                placeholder="Write whatever you would like the caption to talk about (e.g., 'This is the Godfather Sandwich' or 'write about a bogo promo tomorrow from 2-4pm')"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 className="flex-1 min-h-[120px] resize-none rounded-2xl bg-background/95 border border-border shadow-sm focus-visible:ring-ring"
