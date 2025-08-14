@@ -11,6 +11,7 @@ import Chat from "./pages/Chat";
 import Library from "./pages/Library";
 import Auth from "./pages/Auth";
 import Connections from "./pages/Connections";
+import Schedule from "./pages/Schedule";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -46,7 +47,7 @@ const App = () => (
               <Route path="chat" element={<Chat />} />
               <Route path="library" element={<Library />} />
               <Route path="connections" element={<Connections />} />
-              <Route path="schedule" element={<Index />} />
+              <Route path="schedule" element={<Schedule />} />
               <Route path="analytics" element={<Index />} />
               <Route path="settings" element={<Index />} />
             </Route>

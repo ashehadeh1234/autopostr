@@ -116,6 +116,92 @@ export type Database = {
         }
         Relationships: []
       }
+      schedule_executions: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          executed_at: string
+          id: string
+          n8n_execution_id: string | null
+          schedule_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          executed_at?: string
+          id?: string
+          n8n_execution_id?: string | null
+          schedule_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          executed_at?: string
+          id?: string
+          n8n_execution_id?: string | null
+          schedule_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_executions_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schedules: {
+        Row: {
+          created_at: string
+          days_of_week: number[]
+          description: string | null
+          id: string
+          is_active: boolean
+          n8n_workflow_id: string | null
+          name: string
+          times: string[]
+          timezone: string
+          updated_at: string
+          user_id: string
+          webhook_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          days_of_week?: number[]
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          n8n_workflow_id?: string | null
+          name: string
+          times?: string[]
+          timezone?: string
+          updated_at?: string
+          user_id: string
+          webhook_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          days_of_week?: number[]
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          n8n_workflow_id?: string | null
+          name?: string
+          times?: string[]
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
       social_connections: {
         Row: {
           access_token: string
