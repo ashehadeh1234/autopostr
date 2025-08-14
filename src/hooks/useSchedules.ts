@@ -13,6 +13,8 @@ export interface Schedule {
   time_between_posts: number;
   time_between_unit: 'seconds' | 'minutes' | 'hours';
   is_active: boolean;
+  last_executed_at?: string;
+  next_execution_at?: string;
   created_at: string;
   updated_at: string;
 }

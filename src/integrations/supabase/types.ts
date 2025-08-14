@@ -165,7 +165,9 @@ export type Database = {
           interval_unit: string
           interval_value: number
           is_active: boolean
+          last_executed_at: string | null
           name: string
+          next_execution_at: string | null
           time_between_posts: number
           time_between_unit: string
           updated_at: string
@@ -178,7 +180,9 @@ export type Database = {
           interval_unit?: string
           interval_value?: number
           is_active?: boolean
+          last_executed_at?: string | null
           name: string
+          next_execution_at?: string | null
           time_between_posts?: number
           time_between_unit?: string
           updated_at?: string
@@ -191,7 +195,9 @@ export type Database = {
           interval_unit?: string
           interval_value?: number
           is_active?: boolean
+          last_executed_at?: string | null
           name?: string
+          next_execution_at?: string | null
           time_between_posts?: number
           time_between_unit?: string
           updated_at?: string

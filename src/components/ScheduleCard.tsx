@@ -97,8 +97,18 @@ export const ScheduleCard = ({ schedule, onEdit, onDelete, onToggle }: ScheduleC
         </div>
 
         
-        <div className="text-xs text-muted-foreground pt-2 border-t border-border">
-          Created: {new Date(schedule.created_at).toLocaleDateString()}
+        <div className="text-xs text-muted-foreground pt-2 border-t border-border space-y-1">
+          <div>Created: {new Date(schedule.created_at).toLocaleDateString()}</div>
+          {schedule.last_executed_at && (
+            <div className="text-emerald-600">
+              Last run: {new Date(schedule.last_executed_at).toLocaleString()}
+            </div>
+          )}
+          {schedule.next_execution_at && (
+            <div className="text-primary">
+              Next run: {new Date(schedule.next_execution_at).toLocaleString()}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
