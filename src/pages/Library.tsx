@@ -51,6 +51,14 @@ const Library = () => {
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
+  const [showFilters, setShowFilters] = useState(false);
+  const [activeFilters, setActiveFilters] = useState({
+    fileType: 'all',
+    rotationStatus: 'all',
+    dateRange: 'all',
+    sizeRange: 'all',
+    customFunction: ''
+  });
 
   const handleFileSelect = async (files: FileList) => {
     console.log(`Starting upload of ${files.length} files`);
@@ -76,9 +84,78 @@ const Library = () => {
     }
   };
 
-  const filteredAssets = assets.filter(asset =>
-    asset.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Advanced filtering with custom functions
+  const applyCustomFilter = (asset: any, customFunction: string) => {
+    if (!customFunction.trim()) return true;
+    
+    try {
+      // Create a safe evaluation context with asset properties
+      const context = {
+        name: asset.name,
+        type: asset.type,
+        size: asset.size,
+        created_at: new Date(asset.created_at),
+        rotation_enabled: asset.rotation_enabled,
+        url: asset.url,
+        // Helper functions
+        isImage: () => asset.type.startsWith('image/'),
+        isVideo: () => asset.type.startsWith('video/'),
+        isDocument: () => !asset.type.startsWith('image/') && !asset.type.startsWith('video/'),
+        sizeInMB: () => Math.round((asset.size / (1024 * 1024)) * 100) / 100,
+        daysSinceCreated: () => Math.floor((Date.now() - new Date(asset.created_at).getTime()) / (1000 * 60 * 60 * 24)),
+        nameContains: (text: string) => asset.name.toLowerCase().includes(text.toLowerCase()),
+        isOlderThan: (days: number) => {
+          const daysSince = Math.floor((Date.now() - new Date(asset.created_at).getTime()) / (1000 * 60 * 60 * 24));
+          return daysSince > days;
+        },
+        isLargerThan: (mb: number) => (asset.size / (1024 * 1024)) > mb,
+        isSmallerThan: (mb: number) => (asset.size / (1024 * 1024)) < mb
+      };
+      
+      // Create function with access to context
+      const filterFunction = new Function(...Object.keys(context), `return ${customFunction}`);
+      return filterFunction(...Object.values(context));
+    } catch (error) {
+      console.warn('Invalid filter function:', error);
+      return true;
+    }
+  };
+
+  const filteredAssets = assets.filter(asset => {
+    // Text search
+    const matchesSearch = asset.name.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // File type filter
+    const matchesFileType = activeFilters.fileType === 'all' || 
+      (activeFilters.fileType === 'images' && asset.type.startsWith('image/')) ||
+      (activeFilters.fileType === 'videos' && asset.type.startsWith('video/')) ||
+      (activeFilters.fileType === 'documents' && !asset.type.startsWith('image/') && !asset.type.startsWith('video/'));
+    
+    // Rotation status filter
+    const matchesRotation = activeFilters.rotationStatus === 'all' ||
+      (activeFilters.rotationStatus === 'enabled' && asset.rotation_enabled) ||
+      (activeFilters.rotationStatus === 'disabled' && !asset.rotation_enabled);
+    
+    // Date range filter
+    const daysSinceCreated = Math.floor((Date.now() - new Date(asset.created_at).getTime()) / (1000 * 60 * 60 * 24));
+    const matchesDate = activeFilters.dateRange === 'all' ||
+      (activeFilters.dateRange === 'today' && daysSinceCreated === 0) ||
+      (activeFilters.dateRange === 'week' && daysSinceCreated <= 7) ||
+      (activeFilters.dateRange === 'month' && daysSinceCreated <= 30) ||
+      (activeFilters.dateRange === 'older' && daysSinceCreated > 30);
+    
+    // Size range filter
+    const sizeInMB = asset.size / (1024 * 1024);
+    const matchesSize = activeFilters.sizeRange === 'all' ||
+      (activeFilters.sizeRange === 'small' && sizeInMB < 1) ||
+      (activeFilters.sizeRange === 'medium' && sizeInMB >= 1 && sizeInMB < 10) ||
+      (activeFilters.sizeRange === 'large' && sizeInMB >= 10);
+    
+    // Custom function filter
+    const matchesCustom = applyCustomFilter(asset, activeFilters.customFunction);
+    
+    return matchesSearch && matchesFileType && matchesRotation && matchesDate && matchesSize && matchesCustom;
+  });
 
   // Selection management functions
   const toggleSelection = (assetId: string) => {
@@ -128,6 +205,24 @@ const Library = () => {
     const selectedAssetObjects = filteredAssets.filter(asset => selectedAssets.has(asset.id));
     copyMultipleUrls(selectedAssetObjects);
   };
+
+  // Filter management
+  const updateFilter = (key: string, value: string) => {
+    setActiveFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearAllFilters = () => {
+    setActiveFilters({
+      fileType: 'all',
+      rotationStatus: 'all',
+      dateRange: 'all',
+      sizeRange: 'all',
+      customFunction: ''
+    });
+    setSearchQuery('');
+  };
+
+  const hasActiveFilters = Object.values(activeFilters).some(value => value !== 'all' && value !== '') || searchQuery !== '';
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -184,9 +279,13 @@ const Library = () => {
               className="pl-10 w-80"
             />
           </div>
-          <Button variant="outline" size="sm">
+          <Button 
+            variant={showFilters ? 'default' : 'outline'} 
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+          >
             <Filter className="w-4 h-4 mr-2" />
-            Filter
+            Filters {hasActiveFilters && `(${Object.values(activeFilters).filter(v => v !== 'all' && v !== '').length + (searchQuery ? 1 : 0)})`}
           </Button>
           <Button 
             variant={isSelectionMode ? 'default' : 'outline'}
@@ -215,6 +314,105 @@ const Library = () => {
           </Button>
         </div>
       </div>
+
+      {/* Advanced Filters Panel */}
+      {showFilters && (
+        <Card className="bg-secondary/30">
+          <CardContent className="p-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Advanced Filters</h3>
+              <Button variant="ghost" size="sm" onClick={clearAllFilters}>
+                Clear All
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* File Type Filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">File Type</label>
+                <select 
+                  value={activeFilters.fileType} 
+                  onChange={(e) => updateFilter('fileType', e.target.value)}
+                  className="w-full p-2 rounded-md border border-border bg-background"
+                >
+                  <option value="all">All Types</option>
+                  <option value="images">Images</option>
+                  <option value="videos">Videos</option>
+                  <option value="documents">Documents</option>
+                </select>
+              </div>
+
+              {/* Rotation Status Filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Rotation Status</label>
+                <select 
+                  value={activeFilters.rotationStatus} 
+                  onChange={(e) => updateFilter('rotationStatus', e.target.value)}
+                  className="w-full p-2 rounded-md border border-border bg-background"
+                >
+                  <option value="all">All</option>
+                  <option value="enabled">In Rotation</option>
+                  <option value="disabled">Not in Rotation</option>
+                </select>
+              </div>
+
+              {/* Date Range Filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Upload Date</label>
+                <select 
+                  value={activeFilters.dateRange} 
+                  onChange={(e) => updateFilter('dateRange', e.target.value)}
+                  className="w-full p-2 rounded-md border border-border bg-background"
+                >
+                  <option value="all">All Time</option>
+                  <option value="today">Today</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                  <option value="older">Older than 30 days</option>
+                </select>
+              </div>
+
+              {/* Size Range Filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">File Size</label>
+                <select 
+                  value={activeFilters.sizeRange} 
+                  onChange={(e) => updateFilter('sizeRange', e.target.value)}
+                  className="w-full p-2 rounded-md border border-border bg-background"
+                >
+                  <option value="all">All Sizes</option>
+                  <option value="small">Small (less than 1MB)</option>
+                  <option value="medium">Medium (1-10MB)</option>
+                  <option value="large">Large (more than 10MB)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Custom Function Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Custom Filter Function</label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Write a JavaScript expression that returns true/false. Available: name, type, size, created_at, rotation_enabled, isImage(), isVideo(), isDocument(), sizeInMB(), daysSinceCreated(), nameContains(text), isOlderThan(days), isLargerThan(mb), isSmallerThan(mb)
+              </p>
+              <Input
+                placeholder="e.g., isImage() && sizeInMB() > 5 && nameContains('banner')"
+                value={activeFilters.customFunction}
+                onChange={(e) => updateFilter('customFunction', e.target.value)}
+                className="font-mono text-sm"
+              />
+              <div className="text-xs text-muted-foreground">
+                <p><strong>Examples:</strong></p>
+                <ul className="list-disc list-inside space-y-1 mt-1">
+                  <li><code>isImage() && sizeInMB() {">"} 2</code> - Images larger than 2MB</li>
+                  <li><code>nameContains('logo') && rotation_enabled</code> - Logo files in rotation</li>
+                  <li><code>isOlderThan(7) && !rotation_enabled</code> - Files older than 7 days not in rotation</li>
+                  <li><code>isVideo() || sizeInMB() {">"} 10</code> - Videos or large files</li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Bulk Actions Toolbar */}
       {isSelectionMode && (
