@@ -46,7 +46,7 @@ export const useAssets = () => {
   };
 
   const resizeImage = (file: File, maxSizeMB: number = 7): Promise<File> => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const img = new Image();
@@ -54,7 +54,7 @@ export const useAssets = () => {
       img.onload = () => {
         // Calculate new dimensions to keep aspect ratio
         let { width, height } = img;
-        const maxDimension = 2048; // Max width/height
+        const maxDimension = 1920; // Max width/height for better compression
         
         if (width > height && width > maxDimension) {
           height = (height * maxDimension) / width;
@@ -68,24 +68,35 @@ export const useAssets = () => {
         canvas.height = height;
         ctx?.drawImage(img, 0, 0, width, height);
         
-        // Convert to blob with compression
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const resizedFile = new File([blob], file.name, {
-                type: file.type,
-                lastModified: Date.now(),
-              });
-              resolve(resizedFile);
-            } else {
-              resolve(file);
-            }
-          },
-          file.type,
-          0.8 // 80% quality
-        );
+        // Start with lower quality and iterate if needed
+        let quality = 0.7;
+        const tryCompress = () => {
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const sizeInMB = blob.size / (1024 * 1024);
+                if (sizeInMB <= maxSizeMB || quality <= 0.1) {
+                  const resizedFile = new File([blob], file.name, {
+                    type: file.type,
+                    lastModified: Date.now(),
+                  });
+                  resolve(resizedFile);
+                } else {
+                  quality -= 0.1;
+                  tryCompress();
+                }
+              } else {
+                resolve(file);
+              }
+            },
+            file.type,
+            quality
+          );
+        };
+        tryCompress();
       };
       
+      img.onerror = () => reject(new Error('Failed to load image'));
       img.src = URL.createObjectURL(file);
     });
   };
@@ -97,7 +108,9 @@ export const useAssets = () => {
       // Resize image if it's an image file and larger than 7MB
       let fileToUpload = file;
       if (file.type.startsWith('image/') && file.size > 7 * 1024 * 1024) {
+        console.log(`Resizing image from ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
         fileToUpload = await resizeImage(file);
+        console.log(`Resized to ${(fileToUpload.size / (1024 * 1024)).toFixed(2)}MB`);
       }
 
       // Create unique file path
@@ -123,8 +136,8 @@ export const useAssets = () => {
         .insert({
           user_id: user.id,
           name: file.name,
-          type: file.type,
-          size: file.size,
+          type: fileToUpload.type,
+          size: fileToUpload.size, // Use resized file size
           url: publicUrl,
           storage_path: filePath,
         })
