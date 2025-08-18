@@ -6,6 +6,15 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
+  // Generate request ID for tracking
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  
+  console.log(`[${requestId}] Facebook OAuth request started:`, {
+    method: req.method,
+    url: req.url,
+    headers: Object.fromEntries(req.headers.entries())
+  })
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -18,27 +27,36 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
+      console.error(`[${requestId}] Missing Authorization header`)
       throw new Error('Missing Authorization header')
     }
 
+    console.log(`[${requestId}] Validating user token...`)
     const { data: { user }, error: authError } = await supabase.auth.getUser(
       authHeader.replace('Bearer ', '')
     )
 
     if (authError || !user) {
+      console.error(`[${requestId}] Auth validation failed:`, authError)
       throw new Error('Invalid or expired token')
     }
+
+    console.log(`[${requestId}] User authenticated:`, user.id)
 
     const requestBody = await req.json()
     const { action, code, state } = requestBody
 
+    console.log(`[${requestId}] Processing action:`, action)
+
     // Input validation
     if (!action || typeof action !== 'string') {
+      console.error(`[${requestId}] Invalid action parameter:`, action)
       throw new Error('Invalid action parameter')
     }
 
     // Validate action is one of expected values
     if (!['getAuthUrl', 'handleCallback'].includes(action)) {
+      console.error(`[${requestId}] Invalid action value:`, action)
       throw new Error('Invalid action value')
     }
 
@@ -53,15 +71,18 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'getAuthUrl') {
+      console.log(`[${requestId}] Generating Facebook OAuth URL...`)
+      
       // Generate Facebook OAuth URL
       const facebookAppId = Deno.env.get('FACEBOOK_APP_ID')
       if (!facebookAppId) {
+        console.error(`[${requestId}] Facebook App ID not configured`)
         throw new Error('Facebook App ID not configured')
       }
 
       const redirectUri = `https://e9e888a3-548a-4ec5-b629-c611095423bc.lovableproject.com/facebook-callback`
       const scope = 'pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_engagement'
-      const stateParam = btoa(JSON.stringify({ userId: user.id, timestamp: Date.now() }))
+      const stateParam = btoa(JSON.stringify({ userId: user.id, timestamp: Date.now(), requestId }))
       
       const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?` +
         `client_id=${facebookAppId}&` +
@@ -70,36 +91,47 @@ Deno.serve(async (req) => {
         `response_type=code&` +
         `state=${stateParam}`
 
+      console.log(`[${requestId}] OAuth URL generated successfully`)
       return new Response(JSON.stringify({ authUrl }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
     if (action === 'handleCallback' && code) {
+      console.log(`[${requestId}] Processing callback with code:`, code.slice(0, 10) + '...')
+      
       // Validate state parameter if provided  
       let decodedState = null
       if (state) {
         try {
           decodedState = JSON.parse(atob(state))
+          console.log(`[${requestId}] State validation - User ID match:`, decodedState.userId === user.id)
+          
           if (decodedState.userId !== user.id) {
+            console.error(`[${requestId}] State validation failed - user mismatch`)
             throw new Error('State parameter validation failed')
           }
+          
           // Check timestamp to prevent replay attacks (valid for 1 hour)
           const stateTimestamp = decodedState.timestamp
           if (!stateTimestamp || Date.now() - stateTimestamp > 3600000) {
+            console.error(`[${requestId}] State parameter expired`)
             throw new Error('State parameter expired')
           }
         } catch (e) {
-          console.error('State validation error:', e)
+          console.error(`[${requestId}] State validation error:`, e)
           throw new Error('Invalid state parameter format')
         }
       }
 
       // Exchange code for access token
+      console.log(`[${requestId}] Exchanging code for access token...`)
+      
       const facebookAppId = Deno.env.get('FACEBOOK_APP_ID')
       const facebookAppSecret = Deno.env.get('FACEBOOK_APP_SECRET')
       
       if (!facebookAppId || !facebookAppSecret) {
+        console.error(`[${requestId}] Facebook credentials not configured`)
         throw new Error('Facebook credentials not configured')
       }
 
@@ -162,6 +194,8 @@ Deno.serve(async (req) => {
       const pagesData = await pagesResponse.json()
 
       // Store connections for each page
+      console.log(`[${requestId}] Processing ${pagesData.data?.length || 0} pages...`)
+      
       const connections = []
       if (pagesData.data) {
         for (const page of pagesData.data) {
@@ -222,6 +256,8 @@ Deno.serve(async (req) => {
         }
       }
 
+      console.log(`[${requestId}] Successfully processed ${connections.length} page connections`)
+      
       return new Response(JSON.stringify({ 
         success: true, 
         user: userData,
@@ -234,9 +270,15 @@ Deno.serve(async (req) => {
     throw new Error('Invalid action')
 
   } catch (error) {
-    console.error('Facebook OAuth error:', error)
+    console.error(`[${requestId}] Facebook OAuth error:`, {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    })
+    
     return new Response(JSON.stringify({ 
-      error: error.message 
+      error: error.message,
+      requestId: requestId
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

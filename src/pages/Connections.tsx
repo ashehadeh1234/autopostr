@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { errorHandler } from "@/utils/errorHandling";
+import { connectionManager } from "@/utils/connectionUtils";
+import { DebugPanel } from "@/components/DebugPanel";
 import { 
   Facebook, 
   Twitter, 
@@ -17,7 +20,9 @@ import {
   Users,
   Zap,
   Loader2,
-  Settings
+  Settings,
+  Bug,
+  AlertCircle
 } from "lucide-react";
 
 interface Connection {
@@ -102,6 +107,8 @@ export default function Connections() {
   const [socialConnections, setSocialConnections] = useState<SocialConnection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
+  const [debugPanelOpen, setDebugPanelOpen] = useState(false);
+  const [connectionErrors, setConnectionErrors] = useState<Record<string, string>>({});
 
   // Load social connections from database
   useEffect(() => {
@@ -111,7 +118,7 @@ export default function Connections() {
   }, [user]);
 
   const loadSocialConnections = async () => {
-    try {
+    return connectionManager.withRetry(async () => {
       const { data, error } = await supabase
         .from('social_connections')
         .select('*')
@@ -121,6 +128,9 @@ export default function Connections() {
       if (error) throw error;
 
       setSocialConnections(data || []);
+      
+      // Clear any previous connection errors for successful load
+      setConnectionErrors({});
       
       // Update connections state based on database data
       setConnections(prev => prev.map(conn => {
@@ -138,16 +148,13 @@ export default function Connections() {
           pages: pages
         };
       }));
-    } catch (error) {
-      console.error('Error loading social connections:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load social connections",
-        variant: "destructive",
-      });
-    } finally {
+      
       setIsLoading(false);
-    }
+    }, { maxAttempts: 2 }, { operation: 'loadSocialConnections', userId: user?.id }).catch((error) => {
+      const errorId = errorHandler.log(error, { operation: 'loadSocialConnections', userId: user?.id }, user?.id);
+      errorHandler.showUserFriendlyError(errorId);
+      setIsLoading(false);
+    });
   };
 
   const handleConnect = async (connectionId: string) => {
@@ -175,7 +182,9 @@ export default function Connections() {
     if (!session?.access_token) return;
     
     setConnecting('facebook');
-    try {
+    setConnectionErrors(prev => ({ ...prev, facebook: '' }));
+    
+    return connectionManager.withRetry(async () => {
       const response = await supabase.functions.invoke('facebook-oauth', {
         body: { action: 'getAuthUrl' },
         headers: {
@@ -183,30 +192,40 @@ export default function Connections() {
         }
       });
 
-      if (response.error) throw response.error;
+      if (response.error) throw new Error(response.error.message || 'Failed to get Facebook auth URL');
 
       // Open Facebook OAuth in new window
-      window.open(response.data.authUrl, 'facebook-oauth', 'width=600,height=600');
+      const authWindow = window.open(response.data.authUrl, 'facebook-oauth', 'width=600,height=600');
       
-      // Listen for OAuth completion
+      if (!authWindow) {
+        throw new Error('Failed to open authentication window. Please allow popups for this site.');
+      }
+      
+      // Listen for OAuth completion with timeout
       const handleMessage = async (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
         
         if (event.data.type === 'FACEBOOK_OAUTH_CODE') {
-          // Exchange code for tokens via our edge function
           try {
-            const callbackResponse = await supabase.functions.invoke('facebook-oauth', {
-              body: { 
-                action: 'handleCallback',
-                code: event.data.code,
-                state: event.data.state
-              },
-              headers: {
-                Authorization: `Bearer ${session.access_token}`
-              }
-            });
+            const callbackResponse = await connectionManager.withRetry(async () => {
+              const result = await supabase.functions.invoke('facebook-oauth', {
+                body: { 
+                  action: 'handleCallback',
+                  code: event.data.code,
+                  state: event.data.state
+                },
+                headers: {
+                  Authorization: `Bearer ${session.access_token}`
+                }
+              });
 
-            if (callbackResponse.error) throw callbackResponse.error;
+              if (result.error) throw new Error(result.error.message || 'Callback processing failed');
+              return result;
+            }, { maxAttempts: 2 }, { 
+              operation: 'facebookCallback', 
+              code: event.data.code?.slice(0, 10) + '...',
+              userId: user?.id 
+            });
 
             await loadSocialConnections();
             toast({
@@ -214,36 +233,53 @@ export default function Connections() {
               description: `Successfully connected ${callbackResponse.data.pages?.length || 0} Facebook pages.`,
             });
           } catch (error) {
-            console.error('Callback processing error:', error);
-            toast({
-              title: "Connection Failed",
-              description: "Failed to process Facebook connection",
-              variant: "destructive",
-            });
+            const errorId = errorHandler.log(error as Error, { 
+              operation: 'facebookCallback',
+              userId: user?.id,
+              code: event.data.code?.slice(0, 10) + '...'
+            }, user?.id);
+            errorHandler.showUserFriendlyError(errorId, 'Failed to process Facebook connection. Please try again.');
+            setConnectionErrors(prev => ({ ...prev, facebook: (error as Error).message }));
           }
           window.removeEventListener('message', handleMessage);
           setConnecting(null);
         } else if (event.data.type === 'FACEBOOK_OAUTH_ERROR') {
-          toast({
-            title: "Connection Failed",
-            description: event.data.error || "Failed to connect to Facebook",
-            variant: "destructive",
-          });
+          const errorMsg = event.data.error || "Failed to connect to Facebook";
+          const errorId = errorHandler.log(new Error(errorMsg), { 
+            operation: 'facebookOAuth',
+            errorType: 'oauth_error',
+            userId: user?.id 
+          }, user?.id);
+          errorHandler.showUserFriendlyError(errorId);
+          setConnectionErrors(prev => ({ ...prev, facebook: errorMsg }));
           window.removeEventListener('message', handleMessage);
           setConnecting(null);
         }
       };
       
       window.addEventListener('message', handleMessage);
-    } catch (error) {
-      console.error('Facebook connect error:', error);
-      toast({
-        title: "Connection Failed",
-        description: "Failed to start Facebook connection",
-        variant: "destructive",
-      });
+      
+      // Set timeout for OAuth process
+      setTimeout(() => {
+        if (connecting === 'facebook') {
+          window.removeEventListener('message', handleMessage);
+          if (authWindow && !authWindow.closed) {
+            authWindow.close();
+          }
+          setConnecting(null);
+          setConnectionErrors(prev => ({ ...prev, facebook: 'Authentication timed out. Please try again.' }));
+        }
+      }, 300000); // 5 minute timeout
+      
+    }, { maxAttempts: 2 }, { 
+      operation: 'facebookConnect', 
+      userId: user?.id 
+    }).catch((error) => {
+      const errorId = errorHandler.log(error, { operation: 'facebookConnect', userId: user?.id }, user?.id);
+      errorHandler.showUserFriendlyError(errorId, 'Failed to start Facebook connection. Please try again.');
+      setConnectionErrors(prev => ({ ...prev, facebook: error.message }));
       setConnecting(null);
-    }
+    });
   };
 
   const handleDisconnect = async (connectionId: string) => {
@@ -303,10 +339,20 @@ export default function Connections() {
             Connect your social media accounts to start automating your posts
           </p>
         </div>
-        <Button variant="outline" size="sm">
-          <Settings className="h-4 w-4 mr-2" />
-          Settings
-        </Button>
+        <div className="flex space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setDebugPanelOpen(true)}
+          >
+            <Bug className="h-4 w-4 mr-2" />
+            Debug
+          </Button>
+          <Button variant="outline" size="sm">
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -375,6 +421,18 @@ export default function Connections() {
                   )}
                 </div>
 
+                {/* Show connection error if any */}
+                {connectionErrors[connection.platform] && (
+                  <div className="mt-3 p-2 bg-destructive/10 rounded-md border border-destructive/20">
+                    <div className="flex items-start space-x-2">
+                      <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+                      <div className="text-sm text-destructive">
+                        {connectionErrors[connection.platform]}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Show connected pages for Facebook */}
                 {connection.platform === 'facebook' && connection.connected && connection.pages && connection.pages.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-border">
@@ -424,6 +482,11 @@ export default function Connections() {
           </div>
         </CardContent>
       </Card>
+
+      <DebugPanel 
+        isOpen={debugPanelOpen} 
+        onClose={() => setDebugPanelOpen(false)} 
+      />
     </div>
   );
 }
