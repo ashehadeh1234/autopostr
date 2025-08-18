@@ -1,3 +1,13 @@
+/**
+ * @fileoverview Connection Card Component
+ * 
+ * A reusable card component for displaying and managing social media platform
+ * connections. Handles connection status, error states, and user interactions.
+ * 
+ * @author Social Media Manager Team
+ * @version 2.0 - Extracted from Connections page
+ */
+
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,14 +16,44 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle, XCircle, Loader2, AlertCircle } from "lucide-react";
 import { Connection } from '@/constants/platforms';
 
+/**
+ * Props for the ConnectionCard component.
+ */
 interface ConnectionCardProps {
+  /** The connection object with platform details */
   connection: Connection;
+  /** Whether a connection attempt is in progress */
   connecting: boolean;
+  /** Error message to display, if any */
   connectionError?: string;
+  /** Callback when user clicks connect/disconnect button */
   onConnect: (connectionId: string) => void;
+  /** Callback when user toggles auto-posting switch */
   onToggleEnabled: (connectionId: string) => void;
 }
 
+/**
+ * ConnectionCard displays a social media platform connection with its status,
+ * controls for connecting/disconnecting, and auto-posting toggle.
+ * 
+ * Features:
+ * - Visual connection status with badges
+ * - Connect/disconnect button with loading states
+ * - Auto-posting toggle for connected platforms
+ * - Error message display
+ * - Connected pages listing (for Facebook)
+ * 
+ * @example
+ * ```tsx
+ * <ConnectionCard
+ *   connection={facebookConnection}
+ *   connecting={isConnecting}
+ *   connectionError={error}
+ *   onConnect={handleConnect}
+ *   onToggleEnabled={handleToggle}
+ * />
+ * ```
+ */
 export const ConnectionCard: React.FC<ConnectionCardProps> = ({
   connection,
   connecting,
