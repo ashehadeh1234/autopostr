@@ -1,255 +1,82 @@
 import { toast } from "@/hooks/use-toast";
+import { logger } from "./logger";
 
-export interface ErrorDetails {
+interface ErrorDetails {
   code: string;
   message: string;
-  category: 'network' | 'api' | 'auth' | 'validation' | 'facebook' | 'unknown';
+  category: 'network' | 'auth' | 'validation' | 'facebook' | 'system' | 'unknown';
   severity: 'low' | 'medium' | 'high' | 'critical';
-  context?: Record<string, any>;
-  userMessage?: string;
-  actionable?: boolean;
-  retryable?: boolean;
-}
-
-export interface ErrorLog {
-  id: string;
-  timestamp: number;
-  error: ErrorDetails;
-  userId?: string;
-  sessionId: string;
-  url: string;
-  userAgent: string;
 }
 
 class ErrorHandler {
-  private sessionId: string;
-  private errorLogs: ErrorLog[] = [];
-  private maxLogs = 100;
-
-  constructor() {
-    this.sessionId = this.generateSessionId();
-  }
-
-  private generateSessionId(): string {
-    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  private generateErrorId(): string {
-    return `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  log(error: Error | ErrorDetails, context?: Record<string, any>, userId?: string): string {
-    const errorId = this.generateErrorId();
+  log(error: Error | ErrorDetails, context?: Record<string, any>): string {
+    const errorId = `err_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     
-    let errorDetails: ErrorDetails;
+    let details: ErrorDetails;
     
     if (error instanceof Error) {
-      errorDetails = this.parseError(error, context);
+      details = this.parseError(error);
     } else {
-      errorDetails = error;
+      details = error;
     }
 
-    const errorLog: ErrorLog = {
-      id: errorId,
-      timestamp: Date.now(),
-      error: errorDetails,
-      userId,
-      sessionId: this.sessionId,
-      url: window.location.href,
-      userAgent: navigator.userAgent
-    };
-
-    this.errorLogs.push(errorLog);
-    
-    // Keep only the last N logs
-    if (this.errorLogs.length > this.maxLogs) {
-      this.errorLogs = this.errorLogs.slice(-this.maxLogs);
-    }
-
-    // Log to console with structured format
-    console.group(`🚨 Error [${errorDetails.category}:${errorDetails.severity}] - ${errorId}`);
-    console.error('Message:', errorDetails.message);
-    console.error('Code:', errorDetails.code);
-    if (context) console.error('Context:', context);
-    console.error('Full Error:', errorLog);
-    console.groupEnd();
+    logger.error(`[${errorId}] ${details.category}: ${details.message}`, { 
+      code: details.code, 
+      severity: details.severity, 
+      context 
+    });
 
     return errorId;
   }
 
-  private parseError(error: Error, context?: Record<string, any>): ErrorDetails {
+  private parseError(error: Error): ErrorDetails {
     const message = error.message.toLowerCase();
     
-    // Facebook API specific errors
-    if (message.includes('facebook') || message.includes('oauth')) {
-      return this.categorizeFacebookError(error, context);
+    // Facebook errors
+    if (message.includes('facebook') || message.includes('fb')) {
+      return {
+        code: 'FB_ERROR',
+        message: 'Facebook connection error',
+        category: 'facebook',
+        severity: 'medium'
+      };
     }
-    
+
     // Network errors
-    if (message.includes('fetch') || message.includes('network') || message.includes('timeout')) {
+    if (message.includes('fetch') || message.includes('network')) {
       return {
         code: 'NETWORK_ERROR',
-        message: error.message,
+        message: 'Network connection failed',
         category: 'network',
-        severity: 'medium',
-        context,
-        userMessage: 'Network connection issue. Please check your internet connection.',
-        retryable: true
+        severity: 'medium'
       };
     }
-    
+
     // Auth errors
-    if (message.includes('unauthorized') || message.includes('token') || message.includes('auth')) {
+    if (message.includes('unauthorized') || message.includes('auth')) {
       return {
         code: 'AUTH_ERROR',
-        message: error.message,
+        message: 'Authentication failed',
         category: 'auth',
-        severity: 'high',
-        context,
-        userMessage: 'Authentication error. Please try logging in again.',
-        actionable: true
+        severity: 'high'
       };
     }
-    
-    // Validation errors
-    if (message.includes('invalid') || message.includes('required') || message.includes('validation')) {
-      return {
-        code: 'VALIDATION_ERROR',
-        message: error.message,
-        category: 'validation',
-        severity: 'low',
-        context,
-        userMessage: 'Please check your input and try again.',
-        actionable: true
-      };
-    }
-    
-    // Default unknown error
+
     return {
       code: 'UNKNOWN_ERROR',
-      message: error.message,
+      message: error.message || 'An unexpected error occurred',
       category: 'unknown',
-      severity: 'medium',
-      context,
-      userMessage: 'An unexpected error occurred. Please try again.'
-    };
-  }
-
-  private categorizeFacebookError(error: Error, context?: Record<string, any>): ErrorDetails {
-    const message = error.message.toLowerCase();
-    
-    if (message.includes('app id') || message.includes('credentials')) {
-      return {
-        code: 'FB_CONFIG_ERROR',
-        message: error.message,
-        category: 'facebook',
-        severity: 'critical',
-        context,
-        userMessage: 'Facebook app configuration error. Please contact support.',
-        actionable: false
-      };
-    }
-    
-    if (message.includes('permissions') || message.includes('scope')) {
-      return {
-        code: 'FB_PERMISSIONS_ERROR',
-        message: error.message,
-        category: 'facebook',
-        severity: 'medium',
-        context,
-        userMessage: 'Facebook permissions error. Please try reconnecting your account.',
-        actionable: true,
-        retryable: true
-      };
-    }
-    
-    if (message.includes('token') && message.includes('expired')) {
-      return {
-        code: 'FB_TOKEN_EXPIRED',
-        message: error.message,
-        category: 'facebook',
-        severity: 'medium',
-        context,
-        userMessage: 'Facebook connection expired. Please reconnect your account.',
-        actionable: true,
-        retryable: true
-      };
-    }
-    
-    if (message.includes('rate limit') || message.includes('quota')) {
-      return {
-        code: 'FB_RATE_LIMIT',
-        message: error.message,
-        category: 'facebook',
-        severity: 'medium',
-        context,
-        userMessage: 'Facebook rate limit reached. Please try again later.',
-        retryable: true
-      };
-    }
-    
-    return {
-      code: 'FB_API_ERROR',
-      message: error.message,
-      category: 'facebook',
-      severity: 'high',
-      context,
-      userMessage: 'Facebook API error. Please try again or contact support if the issue persists.',
-      retryable: true
+      severity: 'medium'
     };
   }
 
   showUserFriendlyError(errorId: string, customMessage?: string): void {
-    const errorLog = this.errorLogs.find(log => log.id === errorId);
-    if (!errorLog) return;
-
-    const { error } = errorLog;
-    const userMessage = customMessage || error.userMessage || error.message;
-    
+    const message = customMessage || "Something went wrong. Please try again.";
     toast({
-      title: this.getErrorTitle(error),
-      description: `${userMessage} (Error ID: ${errorId.slice(-8)})`,
-      variant: error.severity === 'critical' || error.severity === 'high' ? 'destructive' : 'default',
+      title: "Error",
+      description: message,
+      variant: "destructive"
     });
-  }
-
-  private getErrorTitle(error: ErrorDetails): string {
-    switch (error.category) {
-      case 'facebook':
-        return 'Facebook Connection Issue';
-      case 'network':
-        return 'Connection Error';
-      case 'auth':
-        return 'Authentication Error';
-      case 'validation':
-        return 'Validation Error';
-      case 'api':
-        return 'API Error';
-      default:
-        return 'Error';
-    }
-  }
-
-  getRecentErrors(limit = 10): ErrorLog[] {
-    return this.errorLogs
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, limit);
-  }
-
-  getErrorsByCategory(category: ErrorDetails['category']): ErrorLog[] {
-    return this.errorLogs.filter(log => log.error.category === category);
-  }
-
-  exportErrorLogs(): string {
-    return JSON.stringify({
-      sessionId: this.sessionId,
-      exportTime: new Date().toISOString(),
-      errorLogs: this.errorLogs
-    }, null, 2);
-  }
-
-  clearLogs(): void {
-    this.errorLogs = [];
   }
 }
 
