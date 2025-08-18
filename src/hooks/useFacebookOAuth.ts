@@ -4,11 +4,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { errorHandler } from '@/utils/errorHandling';
 import { logger } from '@/utils/logger';
 
+interface FacebookPage {
+  id: string;
+  name: string;
+  access_token: string;
+  instagram_business_account: any;
+}
+
 interface FacebookOAuthResult {
   success: boolean;
   message?: string;
   error?: string;
-  pages?: number;
+  pages?: FacebookPage[];
+  userToken?: string;
 }
 
 export const useFacebookOAuth = () => {
@@ -106,8 +114,9 @@ export const useFacebookOAuth = () => {
               
               resolve({
                 success: true,
-                message: `Successfully connected ${result.data.pages?.length || 0} Facebook pages.`,
-                pages: result.data.pages?.length || 0
+                message: result.data.message,
+                pages: result.data.pages || [],
+                userToken: result.data.userToken
               });
             } catch (error) {
               logger.error('Failed to process Facebook callback', { error, attemptId });

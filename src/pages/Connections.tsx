@@ -1,14 +1,18 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Settings } from "lucide-react";
 import { useConnections } from "@/hooks/useConnections";
 import { useFacebookOAuth } from "@/hooks/useFacebookOAuth";
 import { ConnectionCard } from "@/components/ConnectionCard";
+import { FacebookPageSelector } from "@/components/FacebookPageSelector";
 import { logger } from "@/utils/logger";
 
 export default function Connections() {
   const { toast } = useToast();
+  const [showPageSelector, setShowPageSelector] = useState(false);
+  const [availablePages, setAvailablePages] = useState<any[]>([]);
+  const [userToken, setUserToken] = useState<string>('');
   
   const {
     connections,
@@ -52,12 +56,16 @@ export default function Connections() {
         try {
           const result = await handleFacebookConnect();
           
-          if (result.success) {
-            logger.info('Facebook connection successful, reloading connections');
-            await loadSocialConnections();
+          if (result.success && result.pages && result.pages.length > 0) {
+            logger.info('Facebook OAuth successful, showing page selector');
+            setAvailablePages(result.pages);
+            setUserToken(result.userToken || '');
+            setShowPageSelector(true);
+          } else if (result.success) {
             toast({
-              title: "Connected to Facebook",
-              description: result.message,
+              title: "No Pages Found",
+              description: "No Facebook pages were found to connect.",
+              variant: "destructive"
             });
           } else {
             logger.error('Facebook connection failed', { error: result.error });
@@ -84,6 +92,16 @@ export default function Connections() {
         description: `${connection.name} integration is coming soon!`,
       });
     }
+  };
+
+  const handlePageSelectionSuccess = async (connectedPages: number) => {
+    toast({
+      title: "Pages Connected",
+      description: `Successfully connected ${connectedPages} Facebook page${connectedPages !== 1 ? 's' : ''}.`
+    });
+    
+    // Reload connections to reflect new state
+    await loadSocialConnections();
   };
 
   if (isLoading) {
@@ -135,6 +153,14 @@ export default function Connections() {
           </div>
         </div>
       )}
+
+      <FacebookPageSelector
+        isOpen={showPageSelector}
+        onClose={() => setShowPageSelector(false)}
+        pages={availablePages}
+        userToken={userToken}
+        onSuccess={handlePageSelectionSuccess}
+      />
     </div>
   );
 }

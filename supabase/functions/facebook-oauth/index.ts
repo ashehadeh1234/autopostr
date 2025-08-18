@@ -188,15 +188,25 @@ async function getLongLivedToken(shortToken: string, requestId: string): Promise
 
 // ============= FACEBOOK DATA FETCHING =============
 async function fetchFacebookData(userAccessToken: string, requestId: string) {
+  console.log(`[${requestId}] Fetching Facebook user and pages data`)
+  
   // Get user info
   const userResponse = await fetch(`https://graph.facebook.com/v18.0/me?access_token=${userAccessToken}`)
+  if (!userResponse.ok) {
+    throw new Error(`Failed to fetch user data: ${userResponse.statusText}`)
+  }
   const userData = await userResponse.json()
+  console.log(`[${requestId}] User data fetched: ${userData.id}`)
 
-  // Get user's pages
-  const pagesResponse = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${userAccessToken}`)
+  // Get user's pages with Instagram business accounts
+  const pagesResponse = await fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${userAccessToken}`)
+  if (!pagesResponse.ok) {
+    throw new Error(`Failed to fetch pages data: ${pagesResponse.statusText}`)
+  }
   const pagesData = await pagesResponse.json()
+  console.log(`[${requestId}] Pages data fetched: ${pagesData.data?.length || 0} pages`)
 
-  return { userData, pagesData }
+  return { user: userData, pages: pagesData.data || [] }
 }
 
 // ============= DATABASE OPERATIONS =============
@@ -313,7 +323,7 @@ Deno.serve(async (req) => {
     console.log(`[${requestId}] Processing action:`, action)
 
     // Input validation
-    if (!action || typeof action !== 'string' || !['getAuthUrl', 'handleCallback'].includes(action)) {
+    if (!action || typeof action !== 'string' || !['getAuthUrl', 'handleCallback', 'saveSelectedPages'].includes(action)) {
       throw new Error('Invalid action parameter')
     }
 
@@ -346,15 +356,40 @@ Deno.serve(async (req) => {
       const { token: userAccessToken, expiresIn } = await getLongLivedToken(shortToken, requestId)
       
       // Fetch Facebook data
-      const { userData, pagesData } = await fetchFacebookData(userAccessToken, requestId)
+      const { user: userData, pages } = await fetchFacebookData(userAccessToken, requestId)
       
-      // Save connections to database
-      const connections = await saveConnections(user, userData, pagesData, userAccessToken, expiresIn, supabase, requestId)
-      
+      // Return pages for user selection instead of auto-saving
       return new Response(JSON.stringify({ 
         success: true, 
         user: userData,
-        pages: connections 
+        pages: pages,
+        userToken: userAccessToken,
+        message: `Found ${pages.length} Facebook pages available for connection.`
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (action === 'saveSelectedPages') {
+      const { selectedPages, userToken } = requestBody
+      
+      console.log(`[${requestId}] Saving ${selectedPages?.length || 0} selected pages`)
+      
+      if (!Array.isArray(selectedPages) || !userToken) {
+        throw new Error('Invalid selected pages or user token')
+      }
+      
+      // Create mock Facebook data structure for saveConnections
+      const userData = { id: user.id, name: user.email }
+      const pagesData = { data: selectedPages }
+      
+      // Save selected pages to database
+      const connections = await saveConnections(user, userData, pagesData, userToken, undefined, supabase, requestId)
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        pages: connections,
+        message: `Successfully connected ${connections.length} Facebook pages.`
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
