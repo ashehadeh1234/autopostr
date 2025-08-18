@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { connectionManager } from '@/utils/connectionUtils';
+import { connectionUtils } from '@/utils/connectionUtils';
 import { errorHandler } from '@/utils/errorHandling';
 import { logger } from '@/utils/logger';
 import { Connection, SocialConnection, PLATFORMS } from '@/constants/platforms';
@@ -21,23 +20,17 @@ export const useConnections = () => {
   }, [user]);
 
   const loadSocialConnections = async () => {
-    return connectionManager.withRetry(async () => {
-      const { data, error } = await supabase
-        .from('social_connections')
-        .select('*')
-        .eq('user_id', user?.id)
-        .eq('is_active', true);
+    if (!user) return;
 
-      if (error) throw error;
-
-      setSocialConnections(data || []);
+    try {
+      const data = await connectionUtils.loadSocialConnections(user.id);
       
-      // Clear any previous connection errors for successful load
+      setSocialConnections(data);
       setConnectionErrors({});
       
       // Update connections state based on database data
       setConnections(prev => prev.map(conn => {
-        const dbConnections = data?.filter(sc => sc.platform === conn.platform) || [];
+        const dbConnections = data.filter(sc => sc.platform === conn.platform) || [];
         const isConnected = dbConnections.length > 0;
         const pages = dbConnections.map(sc => ({
           pageId: sc.page_id,
@@ -52,35 +45,33 @@ export const useConnections = () => {
         };
       }));
       
-      setIsLoading(false);
-    }, { maxAttempts: 2 }, { operation: 'loadSocialConnections', userId: user?.id }).catch((error) => {
-      const errorId = errorHandler.log(error, { operation: 'loadSocialConnections', userId: user?.id });
+    } catch (error) {
+      const errorId = errorHandler.log(error as Error, { operation: 'loadSocialConnections', userId: user.id });
       errorHandler.showUserFriendlyError(errorId);
+    } finally {
       setIsLoading(false);
-    });
+    }
   };
 
   const handleDisconnect = async (connectionId: string) => {
     const connection = connections.find(c => c.id === connectionId);
-    if (!connection) return;
+    if (!connection || !user) return;
 
     try {
-      // Remove all connections for this platform
-      const { error } = await supabase
-        .from('social_connections')
-        .update({ is_active: false })
-        .eq('user_id', user?.id)
-        .eq('platform', connection.platform);
-
-      if (error) throw error;
-
+      await connectionUtils.disconnectPlatform(user.id, connection.platform);
       await loadSocialConnections();
       
-      return { success: true, message: `${connection.name} has been disconnected.` };
+      return { 
+        success: true, 
+        message: `${connection.name} has been disconnected.` 
+      };
     } catch (error) {
       const errorId = errorHandler.log(error as Error);
       errorHandler.showUserFriendlyError(errorId, 'Failed to disconnect platform');
-      return { success: false, error: (error as Error).message };
+      return { 
+        success: false, 
+        error: (error as Error).message 
+      };
     }
   };
 
