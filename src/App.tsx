@@ -31,11 +31,7 @@ const NavigationLogger = () => {
     const search = location.search;
     const hash = location.hash;
     
-    logger.navigation(
-      sessionStorage.getItem('lastPath') || 'initial',
-      pathname,
-      { search, hash, timestamp: new Date().toISOString() }
-    );
+    logger.info(`Navigation: ${sessionStorage.getItem('lastPath') || 'initial'} -> ${pathname}`);
     
     sessionStorage.setItem('lastPath', pathname);
   }, [location]);
@@ -45,22 +41,18 @@ const NavigationLogger = () => {
 
 const App = () => {
   useEffect(() => {
-    logger.info('App', 'Application started', {
-      userAgent: navigator.userAgent,
-      viewport: { width: window.innerWidth, height: window.innerHeight },
-      url: window.location.href
-    });
+    logger.info('Application started');
 
     // Track page visibility changes
     const handleVisibilityChange = () => {
-      logger.info('App', `Page ${document.hidden ? 'hidden' : 'visible'}`);
+      logger.info(`Page ${document.hidden ? 'hidden' : 'visible'}`);
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      logger.info('App', 'Application unmounted');
+      logger.info('Application unmounted');
     };
   }, []);
 

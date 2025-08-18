@@ -27,16 +27,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    logger.error('ErrorBoundary', 'React component error caught', {
-      error: {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      },
-      errorInfo: {
-        componentStack: errorInfo.componentStack
-      }
-    });
+    logger.error(`React component error: ${error.message}`);
 
     this.setState({
       error,
@@ -45,12 +36,12 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   private handleReset = () => {
-    logger.info('ErrorBoundary', 'Error boundary reset by user');
+    logger.info('Error boundary reset by user');
     this.setState({ hasError: false, error: null, errorInfo: null });
   };
 
   private handleReload = () => {
-    logger.info('ErrorBoundary', 'Page reload triggered by user from error boundary');
+    logger.info('Page reload triggered by user from error boundary');
     window.location.reload();
   };
 
