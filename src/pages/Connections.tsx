@@ -27,29 +27,55 @@ export default function Connections() {
     const connection = connections.find(c => c.id === connectionId);
     if (!connection) return;
 
-    logger.info(`Starting ${connection.platform} connection`);
+    logger.info(`Starting ${connection.platform} connection`, { connectionId });
 
     if (connection.platform === 'facebook') {
       if (connection.connected) {
+        logger.info('Disconnecting Facebook connection');
         const result = await handleDisconnect(connectionId);
         if (result?.success) {
           toast({
             title: "Disconnected",
             description: result.message,
           });
+        } else {
+          toast({
+            title: "Disconnection Failed",
+            description: result?.error || "Failed to disconnect Facebook",
+            variant: "destructive"
+          });
         }
       } else {
+        logger.info('Starting Facebook connection process');
         clearConnectionError('facebook');
-        const result = await handleFacebookConnect();
         
-        if (result.success) {
-          await loadSocialConnections();
+        try {
+          const result = await handleFacebookConnect();
+          
+          if (result.success) {
+            logger.info('Facebook connection successful, reloading connections');
+            await loadSocialConnections();
+            toast({
+              title: "Connected to Facebook",
+              description: result.message,
+            });
+          } else {
+            logger.error('Facebook connection failed', { error: result.error });
+            setConnectionError('facebook', result.error || 'Connection failed');
+            toast({
+              title: "Connection Failed",
+              description: result.error || 'Failed to connect to Facebook',
+              variant: "destructive"
+            });
+          }
+        } catch (error) {
+          logger.error('Unexpected error during Facebook connection', { error });
+          setConnectionError('facebook', 'Unexpected error occurred');
           toast({
-            title: "Connected to Facebook",
-            description: result.message,
+            title: "Connection Error",
+            description: "An unexpected error occurred. Please try again.",
+            variant: "destructive"
           });
-        } else {
-          setConnectionError('facebook', result.error || 'Connection failed');
         }
       }
     } else {

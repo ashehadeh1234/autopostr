@@ -32,7 +32,7 @@ async function validateUser(authHeader: string | null, supabase: any, requestId:
 
 // ============= FACEBOOK AUTH URL =============
 function getAuthUrl(user: any, requestId: string): string {
-  console.log(`[${requestId}] Generating Facebook OAuth URL...`)
+  console.log(`[${requestId}] Generating Facebook OAuth URL for user: ${user.id}`)
   
   const facebookAppId = Deno.env.get('FACEBOOK_APP_ID')
   if (!facebookAppId) {
@@ -43,6 +43,9 @@ function getAuthUrl(user: any, requestId: string): string {
   const redirectUri = `https://e9e888a3-548a-4ec5-b629-c611095423bc.lovableproject.com/facebook-callback.html`
   const scope = 'pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_engagement'
   const stateParam = btoa(JSON.stringify({ userId: user.id, timestamp: Date.now(), requestId }))
+  
+  console.log(`[${requestId}] Using redirect URI: ${redirectUri}`)
+  console.log(`[${requestId}] Using scope: ${scope}`)
   
   const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?` +
     `client_id=${facebookAppId}&` +
@@ -96,17 +99,23 @@ async function exchangeCodeForToken(code: string, requestId: string): Promise<st
 
   const redirectUri = `https://e9e888a3-548a-4ec5-b629-c611095423bc.lovableproject.com/facebook-callback.html`
   
+  console.log(`[${requestId}] Using redirect URI for token exchange: ${redirectUri}`)
+  
   // Get access token with timeout
   const tokenController = new AbortController()
   const tokenTimeout = setTimeout(() => tokenController.abort(), 10000)
   
   try {
     console.log(`[${requestId}] Requesting access token from Facebook...`)
-    const tokenResponse = await fetch(`https://graph.facebook.com/v18.0/oauth/access_token?` +
+    const tokenUrl = `https://graph.facebook.com/v18.0/oauth/access_token?` +
       `client_id=${facebookAppId}&` +
       `client_secret=${facebookAppSecret}&` +
       `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-      `code=${code}`, {
+      `code=${code}`
+    
+    console.log(`[${requestId}] Token request URL (without secrets): ${tokenUrl.replace(facebookAppSecret, '[REDACTED]')}`)
+    
+    const tokenResponse = await fetch(tokenUrl, {
         signal: tokenController.signal
       })
     
@@ -228,22 +237,42 @@ async function saveConnections(user: any, userData: any, pagesData: any, userAcc
       }
 
       if (existingConnection) {
-        const { error } = await supabase
+        console.log(`[${requestId}] Updating existing connection for page: ${page.name}`)
+        const { data, error } = await supabase
           .from('social_connections')
           .update(connectionData)
           .eq('id', existingConnection.id)
+          .select()
         
         if (error) {
-          console.error('Error updating connection:', error)
+          console.error(`[${requestId}] Error updating connection for ${page.name}:`, error)
+          throw new Error(`Failed to update connection for ${page.name}: ${error.message}`)
         }
+        
+        if (!data || data.length === 0) {
+          console.error(`[${requestId}] No data returned after updating connection for ${page.name}`)
+          throw new Error(`Failed to confirm update for ${page.name}`)
+        }
+        
+        console.log(`[${requestId}] Successfully updated connection for page: ${page.name}`)
       } else {
-        const { error } = await supabase
+        console.log(`[${requestId}] Creating new connection for page: ${page.name}`)
+        const { data, error } = await supabase
           .from('social_connections')
           .insert(connectionData)
+          .select()
         
         if (error) {
-          console.error('Error creating connection:', error)
+          console.error(`[${requestId}] Error creating connection for ${page.name}:`, error)
+          throw new Error(`Failed to create connection for ${page.name}: ${error.message}`)
         }
+        
+        if (!data || data.length === 0) {
+          console.error(`[${requestId}] No data returned after creating connection for ${page.name}`)
+          throw new Error(`Failed to confirm creation for ${page.name}`)
+        }
+        
+        console.log(`[${requestId}] Successfully created connection for page: ${page.name}`)
       }
       
       connections.push({

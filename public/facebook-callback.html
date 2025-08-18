@@ -2,39 +2,93 @@
 <html>
 <head>
     <title>Facebook OAuth Callback</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background-color: #f5f5f5;
+        }
+        .loading {
+            color: #1877f2;
+            font-size: 18px;
+        }
+        .error {
+            color: #e74c3c;
+            font-size: 16px;
+        }
+    </style>
 </head>
 <body>
+    <div class="loading">Processing Facebook connection...</div>
+    
     <script>
-        // Extract code and state from URL parameters
+        console.log('Facebook callback page loaded');
+        console.log('Current URL:', window.location.href);
+        
+        // Extract parameters from URL
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
         const state = urlParams.get('state');
         const error = urlParams.get('error');
         const errorDescription = urlParams.get('error_description');
 
+        console.log('URL Parameters:', {
+            code: code ? 'present' : 'missing',
+            state: state ? 'present' : 'missing',
+            error: error,
+            errorDescription: errorDescription
+        });
+
+        // Function to send message and close window
+        const sendMessageAndClose = (message) => {
+            console.log('Sending message to parent:', message);
+            
+            if (window.opener) {
+                try {
+                    window.opener.postMessage(message, window.location.origin);
+                    console.log('Message sent successfully');
+                } catch (err) {
+                    console.error('Failed to send message to parent:', err);
+                }
+            } else {
+                console.error('No opener window found');
+            }
+
+            // Close window after a short delay
+            setTimeout(() => {
+                console.log('Closing popup window');
+                window.close();
+            }, 1000);
+        };
+
+        // Handle the callback
         if (error) {
-            // Send error to parent window
-            window.opener?.postMessage({
+            console.error('OAuth error:', error, errorDescription);
+            document.querySelector('.loading').innerHTML = '<div class="error">Authentication failed. You can close this window.</div>';
+            
+            sendMessageAndClose({
                 type: 'FACEBOOK_OAUTH_ERROR',
                 error: errorDescription || error
-            }, window.location.origin);
-        } else if (code) {
-            // Send code to parent window for processing
-            window.opener?.postMessage({
+            });
+        } else if (code && state) {
+            console.log('OAuth success, sending code to parent');
+            document.querySelector('.loading').innerHTML = 'Success! Completing connection...';
+            
+            sendMessageAndClose({
                 type: 'FACEBOOK_OAUTH_CODE',
                 code: code,
                 state: state
-            }, window.location.origin);
+            });
         } else {
-            // No code or error - something went wrong
-            window.opener?.postMessage({
+            console.error('Invalid callback - missing code or error');
+            document.querySelector('.loading').innerHTML = '<div class="error">Invalid response from Facebook. You can close this window.</div>';
+            
+            sendMessageAndClose({
                 type: 'FACEBOOK_OAUTH_ERROR',
-                error: 'No authorization code received'
-            }, window.location.origin);
+                error: 'No authorization code received from Facebook'
+            });
         }
-
-        // Close the popup
-        window.close();
     </script>
 </body>
 </html>
