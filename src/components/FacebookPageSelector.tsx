@@ -71,13 +71,10 @@ export const FacebookPageSelector: React.FC<FacebookPageSelectorProps> = ({
         throw new Error(response.error.message || 'Failed to save selected pages');
       }
 
-      toast({
-        title: "Pages Connected",
-        description: response.data.message
-      });
-
       onSuccess(selectedPageData.length);
       onClose();
+      // Reset selection for next time
+      setSelectedPages([]);
     } catch (error) {
       console.error('Failed to save selected pages:', error);
       toast({

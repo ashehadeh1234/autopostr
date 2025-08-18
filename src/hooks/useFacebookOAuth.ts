@@ -24,6 +24,11 @@ export const useFacebookOAuth = () => {
   const [connecting, setConnecting] = useState(false);
   const connectionAttemptRef = useRef<string | null>(null);
 
+  const resetConnectionState = () => {
+    connectionAttemptRef.current = null;
+    setConnecting(false);
+  };
+
   const handleFacebookConnect = async (): Promise<FacebookOAuthResult> => {
     if (!session?.access_token) {
       logger.error('Facebook connect failed: no session token');
@@ -110,7 +115,10 @@ export const useFacebookOAuth = () => {
                 attemptId 
               });
               
-              cleanup();
+              // Don't cleanup here - let the parent component handle state after page selection
+              window.removeEventListener('message', handleMessage);
+              connectionAttemptRef.current = null;
+              // Keep setConnecting(true) until page selection is complete
               
               resolve({
                 success: true,
@@ -184,6 +192,7 @@ export const useFacebookOAuth = () => {
 
   return {
     connecting,
-    handleFacebookConnect
+    handleFacebookConnect,
+    resetConnectionState
   };
 };

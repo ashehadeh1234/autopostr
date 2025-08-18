@@ -25,7 +25,7 @@ export default function Connections() {
     clearConnectionError
   } = useConnections();
   
-  const { connecting, handleFacebookConnect } = useFacebookOAuth();
+  const { connecting, handleFacebookConnect, resetConnectionState } = useFacebookOAuth();
 
   const handleConnect = async (connectionId: string) => {
     const connection = connections.find(c => c.id === connectionId);
@@ -61,6 +61,7 @@ export default function Connections() {
             setAvailablePages(result.pages);
             setUserToken(result.userToken || '');
             setShowPageSelector(true);
+            // Keep connecting state active until page selection is complete
           } else if (result.success) {
             toast({
               title: "No Pages Found",
@@ -100,8 +101,15 @@ export default function Connections() {
       description: `Successfully connected ${connectedPages} Facebook page${connectedPages !== 1 ? 's' : ''}.`
     });
     
-    // Reload connections to reflect new state
+    // Reset connection state and reload connections
+    resetConnectionState();
     await loadSocialConnections();
+  };
+
+  const handlePageSelectionClose = () => {
+    setShowPageSelector(false);
+    // Reset connection state when closing without saving
+    resetConnectionState();
   };
 
   if (isLoading) {
@@ -156,7 +164,7 @@ export default function Connections() {
 
       <FacebookPageSelector
         isOpen={showPageSelector}
-        onClose={() => setShowPageSelector(false)}
+        onClose={handlePageSelectionClose}
         pages={availablePages}
         userToken={userToken}
         onSuccess={handlePageSelectionSuccess}
