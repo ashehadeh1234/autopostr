@@ -40,26 +40,77 @@
             errorDescription: errorDescription
         });
 
-        // Function to send message and close window
+        // Function to send message and close window with acknowledgment
         const sendMessageAndClose = (message) => {
             console.log('Sending message to parent:', message);
             
-            if (window.opener) {
-                try {
-                    window.opener.postMessage(message, window.location.origin);
-                    console.log('Message sent successfully');
-                } catch (err) {
-                    console.error('Failed to send message to parent:', err);
-                }
-            } else {
+            if (!window.opener) {
                 console.error('No opener window found');
+                document.querySelector('.loading').innerHTML = '<div class="error">Connection lost with parent window. Please close this window and try again.</div>';
+                return;
             }
 
-            // Close window after a short delay
-            setTimeout(() => {
-                console.log('Closing popup window');
-                window.close();
-            }, 1000);
+            let acknowledged = false;
+            let retryCount = 0;
+            const maxRetries = 3;
+
+            // Listen for acknowledgment from parent
+            const handleAcknowledment = (event) => {
+                if (event.origin !== window.location.origin) return;
+                if (event.data.type === 'FACEBOOK_OAUTH_ACK' && event.data.messageId === message.messageId) {
+                    console.log('Message acknowledged by parent');
+                    acknowledged = true;
+                    window.removeEventListener('message', handleAcknowledment);
+                    
+                    // Close window after acknowledgment
+                    setTimeout(() => {
+                        console.log('Closing popup window after acknowledgment');
+                        window.close();
+                    }, 500);
+                }
+            };
+
+            window.addEventListener('message', handleAcknowledment);
+
+            // Add unique message ID for tracking
+            message.messageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+            const sendMessage = () => {
+                try {
+                    window.opener.postMessage(message, window.location.origin);
+                    console.log('Message sent successfully, attempt:', retryCount + 1);
+                } catch (err) {
+                    console.error('Failed to send message to parent:', err);
+                    retryCount++;
+                    
+                    if (retryCount < maxRetries) {
+                        setTimeout(sendMessage, 1000);
+                    } else {
+                        document.querySelector('.loading').innerHTML = '<div class="error">Failed to communicate with parent window. Please close this window and try again.</div>';
+                    }
+                    return;
+                }
+
+                // Set timeout for acknowledgment
+                setTimeout(() => {
+                    if (!acknowledged && retryCount < maxRetries) {
+                        retryCount++;
+                        console.log('No acknowledgment received, retrying...', retryCount);
+                        sendMessage();
+                    } else if (!acknowledged) {
+                        console.error('No acknowledgment received after max retries');
+                        document.querySelector('.loading').innerHTML = '<div class="error">Connection timeout. Please close this window and try again.</div>';
+                        
+                        // Force close after extended timeout
+                        setTimeout(() => {
+                            console.log('Force closing popup window after timeout');
+                            window.close();
+                        }, 5000);
+                    }
+                }, 3000);
+            };
+
+            sendMessage();
         };
 
         // Handle the callback

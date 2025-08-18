@@ -91,6 +91,19 @@ export const useFacebookOAuth = () => {
           
           logger.info('Received message from popup', { type: event.data.type, attemptId });
           
+          // Send acknowledgment back to popup
+          if (event.data.messageId && authWindow && !authWindow.closed) {
+            try {
+              authWindow.postMessage({
+                type: 'FACEBOOK_OAUTH_ACK',
+                messageId: event.data.messageId
+              }, window.location.origin);
+              logger.info('Acknowledgment sent to popup', { messageId: event.data.messageId });
+            } catch (error) {
+              logger.error('Failed to send acknowledgment to popup', { error });
+            }
+          }
+          
           if (event.data.type === 'FACEBOOK_OAUTH_CODE') {
             try {
               logger.info('Processing OAuth callback', { attemptId });
