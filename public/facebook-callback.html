@@ -40,7 +40,7 @@
             errorDescription: errorDescription
         });
 
-        // Function to send message and close window with acknowledgment
+        // Function to send message and close window (simplified)
         const sendMessageAndClose = (message) => {
             console.log('Sending message to parent:', message);
             
@@ -50,64 +50,48 @@
                 return;
             }
 
-            let acknowledged = false;
+            let messageSent = false;
             let retryCount = 0;
             const maxRetries = 3;
 
-            // Listen for acknowledgment from parent
-            const handleAcknowledment = (event) => {
-                if (event.origin !== window.location.origin) return;
-                if (event.data.type === 'FACEBOOK_OAUTH_ACK' && event.data.messageId === message.messageId) {
-                    console.log('Message acknowledged by parent');
-                    acknowledged = true;
-                    window.removeEventListener('message', handleAcknowledment);
-                    
-                    // Close window after acknowledgment
-                    setTimeout(() => {
-                        console.log('Closing popup window after acknowledgment');
-                        window.close();
-                    }, 500);
-                }
-            };
-
-            window.addEventListener('message', handleAcknowledment);
-
-            // Add unique message ID for tracking
-            message.messageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-
             const sendMessage = () => {
                 try {
-                    window.opener.postMessage(message, window.location.origin);
+                    // Try multiple origin targets for better compatibility
+                    const origins = [
+                        window.location.origin,
+                        '*' // Fallback for cross-origin scenarios
+                    ];
+                    
+                    for (const origin of origins) {
+                        window.opener.postMessage(message, origin);
+                    }
+                    
                     console.log('Message sent successfully, attempt:', retryCount + 1);
+                    messageSent = true;
+                    
+                    // Close window after successful send with small delay
+                    setTimeout(() => {
+                        console.log('Closing popup window after message sent');
+                        window.close();
+                    }, 1500);
+                    
                 } catch (err) {
                     console.error('Failed to send message to parent:', err);
                     retryCount++;
                     
                     if (retryCount < maxRetries) {
+                        console.log('Retrying message send in 1 second...');
                         setTimeout(sendMessage, 1000);
                     } else {
                         document.querySelector('.loading').innerHTML = '<div class="error">Failed to communicate with parent window. Please close this window and try again.</div>';
-                    }
-                    return;
-                }
-
-                // Set timeout for acknowledgment
-                setTimeout(() => {
-                    if (!acknowledged && retryCount < maxRetries) {
-                        retryCount++;
-                        console.log('No acknowledgment received, retrying...', retryCount);
-                        sendMessage();
-                    } else if (!acknowledged) {
-                        console.error('No acknowledgment received after max retries');
-                        document.querySelector('.loading').innerHTML = '<div class="error">Connection timeout. Please close this window and try again.</div>';
                         
-                        // Force close after extended timeout
+                        // Force close after error
                         setTimeout(() => {
-                            console.log('Force closing popup window after timeout');
+                            console.log('Force closing popup window after communication failure');
                             window.close();
-                        }, 5000);
+                        }, 3000);
                     }
-                }, 3000);
+                }
             };
 
             sendMessage();

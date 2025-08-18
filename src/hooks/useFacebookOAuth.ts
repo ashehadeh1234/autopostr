@@ -86,23 +86,23 @@ export const useFacebookOAuth = () => {
         };
 
         const handleMessage = async (event: MessageEvent) => {
-          if (event.origin !== window.location.origin) return;
+          // Allow messages from same origin or any origin for flexibility
+          const validOrigin = event.origin === window.location.origin || 
+                             event.origin === 'null' || 
+                             event.origin.includes(window.location.hostname);
+          
+          if (!validOrigin) {
+            logger.warn('Message from invalid origin', { origin: event.origin });
+            return;
+          }
+          
           if (connectionAttemptRef.current !== attemptId) return; // Ignore stale events
           
-          logger.info('Received message from popup', { type: event.data.type, attemptId });
-          
-          // Send acknowledgment back to popup
-          if (event.data.messageId && authWindow && !authWindow.closed) {
-            try {
-              authWindow.postMessage({
-                type: 'FACEBOOK_OAUTH_ACK',
-                messageId: event.data.messageId
-              }, window.location.origin);
-              logger.info('Acknowledgment sent to popup', { messageId: event.data.messageId });
-            } catch (error) {
-              logger.error('Failed to send acknowledgment to popup', { error });
-            }
-          }
+          logger.info('Received message from popup', { 
+            type: event.data.type, 
+            attemptId,
+            origin: event.origin 
+          });
           
           if (event.data.type === 'FACEBOOK_OAUTH_CODE') {
             try {
