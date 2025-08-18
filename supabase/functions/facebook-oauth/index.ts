@@ -140,8 +140,10 @@ Deno.serve(async (req) => {
       // Get access token with timeout and error handling
       const tokenController = new AbortController()
       const tokenTimeout = setTimeout(() => tokenController.abort(), 10000) // 10 second timeout
+      let tokenData = null // Move declaration outside try-catch block
       
       try {
+        console.log(`[${requestId}] Requesting access token from Facebook...`)
         const tokenResponse = await fetch(`https://graph.facebook.com/v18.0/oauth/access_token?` +
           `client_id=${facebookAppId}&` +
           `client_secret=${facebookAppSecret}&` +
@@ -153,22 +155,33 @@ Deno.serve(async (req) => {
         clearTimeout(tokenTimeout)
         
         if (!tokenResponse.ok) {
-          throw new Error(`Facebook API responded with status: ${tokenResponse.status}`)
+          const errorText = await tokenResponse.text()
+          console.error(`[${requestId}] Facebook token request failed:`, {
+            status: tokenResponse.status,
+            statusText: tokenResponse.statusText,
+            error: errorText
+          })
+          throw new Error(`Facebook API responded with status: ${tokenResponse.status} - ${errorText}`)
         }
         
-        const tokenData = await tokenResponse.json()
+        tokenData = await tokenResponse.json()
+        console.log(`[${requestId}] Token response received from Facebook`)
         
         if (tokenData.error) {
-          console.error('Facebook OAuth error:', tokenData.error)
-          throw new Error(`Facebook OAuth error: ${tokenData.error.message}`)
+          console.error(`[${requestId}] Facebook OAuth error:`, tokenData.error)
+          throw new Error(`Facebook OAuth error: ${tokenData.error.message || tokenData.error}`)
         }
 
         // Validate token response
         if (!tokenData.access_token || typeof tokenData.access_token !== 'string') {
+          console.error(`[${requestId}] Invalid token data received:`, tokenData)
           throw new Error('Invalid access token received from Facebook')
         }
+        
+        console.log(`[${requestId}] Successfully obtained access token`)
       } catch (error) {
         clearTimeout(tokenTimeout)
+        console.error(`[${requestId}] Token exchange error:`, error.message)
         if (error.name === 'AbortError') {
           throw new Error('Facebook API request timeout')
         }
@@ -176,14 +189,20 @@ Deno.serve(async (req) => {
       }
 
       // Get long-lived user access token
+      console.log(`[${requestId}] Exchanging for long-lived token...`)
       const longLivedResponse = await fetch(`https://graph.facebook.com/v18.0/oauth/access_token?` +
         `grant_type=fb_exchange_token&` +
         `client_id=${facebookAppId}&` +
         `client_secret=${facebookAppSecret}&` +
         `fb_exchange_token=${tokenData.access_token}`)
       
+      if (!longLivedResponse.ok) {
+        console.warn(`[${requestId}] Long-lived token exchange failed, using original token`)
+      }
+      
       const longLivedData = await longLivedResponse.json()
       const userAccessToken = longLivedData.access_token || tokenData.access_token
+      console.log(`[${requestId}] Using ${longLivedData.access_token ? 'long-lived' : 'original'} access token`)
 
       // Get user info
       const userResponse = await fetch(`https://graph.facebook.com/v18.0/me?access_token=${userAccessToken}`)
