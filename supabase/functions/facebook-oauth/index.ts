@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
         throw new Error('Facebook App ID not configured')
       }
 
-      const redirectUri = `https://e9e888a3-548a-4ec5-b629-c611095423bc.lovableproject.com/facebook-callback`
+      const redirectUri = `https://e9e888a3-548a-4ec5-b629-c611095423bc.lovableproject.com/facebook-callback.html`
       const scope = 'pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_engagement'
       const stateParam = btoa(JSON.stringify({ userId: user.id, timestamp: Date.now(), requestId }))
       
@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
         throw new Error('Facebook credentials not configured')
       }
 
-      const redirectUri = `https://e9e888a3-548a-4ec5-b629-c611095423bc.lovableproject.com/facebook-callback`
+      const redirectUri = `https://e9e888a3-548a-4ec5-b629-c611095423bc.lovableproject.com/facebook-callback.html`
       
       // Get access token with timeout and error handling
       const tokenController = new AbortController()
