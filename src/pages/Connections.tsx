@@ -9,6 +9,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { errorHandler } from "@/utils/errorHandling";
 import { connectionManager } from "@/utils/connectionUtils";
 import { DebugPanel } from "@/components/DebugPanel";
+import { DebugConsole } from "@/components/DebugConsole";
+import { useLogger } from "@/hooks/useLogger";
+import { logger } from "@/utils/logger";
 import { 
   Facebook, 
   Twitter, 
@@ -22,7 +25,8 @@ import {
   Loader2,
   Settings,
   Bug,
-  AlertCircle
+  AlertCircle,
+  Terminal
 } from "lucide-react";
 
 interface Connection {
@@ -51,6 +55,7 @@ interface SocialConnection {
 export default function Connections() {
   const { toast } = useToast();
   const { user, session } = useAuth();
+  const { logUserAction, logApiCall, logApiResponse, logError, logInfo } = useLogger('Connections');
   const [connections, setConnections] = useState<Connection[]>([
     {
       id: "facebook",
@@ -107,12 +112,15 @@ export default function Connections() {
   const [socialConnections, setSocialConnections] = useState<SocialConnection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
-  const [debugPanelOpen, setDebugPanelOpen] = useState(false);
+  const [isDebugOpen, setIsDebugOpen] = useState(false);
+  const [isDebugConsoleOpen, setIsDebugConsoleOpen] = useState(false);
   const [connectionErrors, setConnectionErrors] = useState<Record<string, string>>({});
 
   // Load social connections from database
   useEffect(() => {
+    logInfo('Component mounted', { userId: user?.id });
     if (user) {
+      logInfo('Loading social connections for user');
       loadSocialConnections();
     }
   }, [user]);
@@ -158,19 +166,26 @@ export default function Connections() {
   };
 
   const handleConnect = async (connectionId: string) => {
+    logUserAction('click', 'connect-button', { connectionId });
     const connection = connections.find(c => c.id === connectionId);
-    if (!connection || !session?.access_token) return;
+    
+    if (!connection || !session?.access_token) {
+      logError('Connect failed: missing connection or session', { connectionId, hasConnection: !!connection, hasSession: !!session?.access_token });
+      return;
+    }
+
+    logInfo('Starting connection process', { platform: connection.platform, connected: connection.connected });
 
     if (connection.platform === 'facebook') {
       if (connection.connected) {
-        // Disconnect - remove all Facebook page connections
+        logInfo('Disconnecting Facebook');
         await handleDisconnect(connectionId);
       } else {
-        // Connect - start Facebook OAuth flow
+        logInfo('Starting Facebook OAuth flow');
         await handleFacebookConnect();
       }
     } else {
-      // For other platforms, show coming soon message
+      logInfo('Platform not yet supported', { platform: connection.platform });
       toast({
         title: "Coming Soon",
         description: `${connection.name} integration is coming soon!`,
@@ -179,12 +194,17 @@ export default function Connections() {
   };
 
   const handleFacebookConnect = async () => {
-    if (!session?.access_token) return;
+    if (!session?.access_token) {
+      logError('Facebook connect failed: no session token');
+      return;
+    }
     
+    logger.connectionStart('facebook', user?.id);
     setConnecting('facebook');
     setConnectionErrors(prev => ({ ...prev, facebook: '' }));
     
     return connectionManager.withRetry(async () => {
+      logApiCall('POST', 'facebook-oauth:getAuthUrl');
       const response = await supabase.functions.invoke('facebook-oauth', {
         body: { action: 'getAuthUrl' },
         headers: {
@@ -192,22 +212,37 @@ export default function Connections() {
         }
       });
 
-      if (response.error) throw new Error(response.error.message || 'Failed to get Facebook auth URL');
+      logApiResponse('POST', 'facebook-oauth:getAuthUrl', response.error ? 400 : 200, response);
 
-      // Open Facebook OAuth in new window
+      if (response.error) {
+        logError('Failed to get Facebook auth URL', response.error);
+        throw new Error(response.error.message || 'Failed to get Facebook auth URL');
+      }
+
+      logInfo('Opening Facebook OAuth window', { authUrl: response.data.authUrl });
       const authWindow = window.open(response.data.authUrl, 'facebook-oauth', 'width=600,height=600');
       
       if (!authWindow) {
+        logError('Failed to open popup window');
         throw new Error('Failed to open authentication window. Please allow popups for this site.');
       }
       
+      logInfo('Popup window opened, waiting for OAuth completion');
+      
       // Listen for OAuth completion with timeout
       const handleMessage = async (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) return;
+        logInfo('Received window message', { type: event.data.type, origin: event.origin });
+        
+        if (event.origin !== window.location.origin) {
+          logInfo('Message ignored: invalid origin', { received: event.origin, expected: window.location.origin });
+          return;
+        }
         
         if (event.data.type === 'FACEBOOK_OAUTH_CODE') {
+          logInfo('Processing OAuth code', { code: event.data.code?.slice(0, 10) + '...' });
           try {
             const callbackResponse = await connectionManager.withRetry(async () => {
+              logApiCall('POST', 'facebook-oauth:handleCallback', { code: event.data.code?.slice(0, 10) + '...' });
               const result = await supabase.functions.invoke('facebook-oauth', {
                 body: { 
                   action: 'handleCallback',
@@ -219,7 +254,12 @@ export default function Connections() {
                 }
               });
 
-              if (result.error) throw new Error(result.error.message || 'Callback processing failed');
+              logApiResponse('POST', 'facebook-oauth:handleCallback', result.error ? 400 : 200, result);
+
+              if (result.error) {
+                logError('Callback processing failed', result.error);
+                throw new Error(result.error.message || 'Callback processing failed');
+              }
               return result;
             }, { maxAttempts: 2 }, { 
               operation: 'facebookCallback', 
@@ -227,12 +267,18 @@ export default function Connections() {
               userId: user?.id 
             });
 
+            logInfo('Facebook callback successful', { pages: callbackResponse.data.pages?.length });
+            logger.connectionSuccess('facebook', { pages: callbackResponse.data.pages?.length }, user?.id);
+            
             await loadSocialConnections();
             toast({
               title: "Connected to Facebook",
               description: `Successfully connected ${callbackResponse.data.pages?.length || 0} Facebook pages.`,
             });
           } catch (error) {
+            logError('Facebook callback error', error);
+            logger.connectionError('facebook', error, user?.id);
+            
             const errorId = errorHandler.log(error as Error, { 
               operation: 'facebookCallback',
               userId: user?.id,
@@ -343,7 +389,15 @@ export default function Connections() {
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => setDebugPanelOpen(true)}
+            onClick={() => setIsDebugConsoleOpen(true)}
+          >
+            <Terminal className="h-4 w-4 mr-2" />
+            Console
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setIsDebugOpen(true)}
           >
             <Bug className="h-4 w-4 mr-2" />
             Debug
@@ -484,9 +538,29 @@ export default function Connections() {
       </Card>
 
       <DebugPanel 
-        isOpen={debugPanelOpen} 
-        onClose={() => setDebugPanelOpen(false)} 
+        isOpen={isDebugOpen} 
+        onClose={() => setIsDebugOpen(false)} 
       />
+      
+      {isDebugConsoleOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-background rounded-lg max-w-6xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold">Debug Console</h2>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setIsDebugConsoleOpen(false)}
+              >
+                ×
+              </Button>
+            </div>
+            <div className="p-4">
+              <DebugConsole />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
