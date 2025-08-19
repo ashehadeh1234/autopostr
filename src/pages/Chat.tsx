@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAssets } from "@/hooks/useAssets";
 import { useNavigate } from "react-router-dom";
 import SpeechRecorder from "@/components/SpeechRecorder";
+import { FilePreview } from "@/components/FilePreview";
 const Chat = () => {
   const [message, setMessage] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -146,18 +147,15 @@ const Chat = () => {
 You dont even have to put a caption, but it will help if you put the nae of the item.</p>
           </div>
 
-          {/* Uploaded Files */}
-          {uploadedAssets.length > 0 && <div className="w-full mb-6">
-              <h3 className="text-sm font-medium mb-3">Uploaded Files ({uploadedAssets.length})</h3>
-              <div className="flex flex-wrap gap-2">
-                {uploadedAssets.map((asset, index) => <Badge key={index} variant="secondary" className="p-2">
-                    {asset.type.startsWith('image/') && <Image className="w-3 h-3 mr-1" />}
-                    {asset.type.startsWith('video/') && <Video className="w-3 h-3 mr-1" />}
-                    {!asset.type.startsWith('image/') && !asset.type.startsWith('video/') && <FileText className="w-3 h-3 mr-1" />}
-                    {asset.name} ✓
-                  </Badge>)}
-              </div>
-            </div>}
+          {/* File Preview */}
+          <FilePreview 
+            assets={uploadedAssets} 
+            onRemove={(index) => {
+              setUploadedAssets(prev => prev.filter((_, i) => i !== index));
+              setFiles(prev => prev.filter((_, i) => i !== index));
+            }}
+            showRemove={true}
+          />
 
           {/* Chat Input */}
           <div className="w-full space-y-3">
