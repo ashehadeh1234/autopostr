@@ -38,7 +38,7 @@ export const useFacebookOAuth = () => {
     // Prevent multiple simultaneous connection attempts
     if (connectionAttemptRef.current) {
       logger.warn('Facebook connection already in progress');
-      return { success: false, error: 'Connection already in progress' };
+      return { success: false, error: 'Connection already in progress. Please wait for the current attempt to complete.' };
     }
 
     const attemptId = crypto.randomUUID();
@@ -86,6 +86,12 @@ export const useFacebookOAuth = () => {
         };
 
         const handleMessage = async (event: MessageEvent) => {
+          // Ignore stale events from previous attempts
+          if (connectionAttemptRef.current !== attemptId) {
+            logger.warn('Ignoring message from stale connection attempt');
+            return;
+          }
+          
           // Allow messages from same origin or any origin for flexibility
           const validOrigin = event.origin === window.location.origin || 
                              event.origin === 'null' || 
@@ -96,8 +102,6 @@ export const useFacebookOAuth = () => {
             return;
           }
           
-          if (connectionAttemptRef.current !== attemptId) return; // Ignore stale events
-          
           logger.info('Received message from popup', { 
             type: event.data.type, 
             attemptId,
@@ -107,6 +111,15 @@ export const useFacebookOAuth = () => {
           if (event.data.type === 'FACEBOOK_OAUTH_CODE') {
             try {
               logger.info('Processing OAuth callback', { attemptId });
+              
+              // Add small delay to prevent race conditions with multiple tabs
+              await new Promise(resolve => setTimeout(resolve, 100));
+              
+              // Double-check we're still the active attempt
+              if (connectionAttemptRef.current !== attemptId) {
+                logger.warn('Connection attempt superseded, canceling');
+                return;
+              }
               
               const result = await supabase.functions.invoke('facebook-oauth', {
                 body: { 
@@ -141,14 +154,28 @@ export const useFacebookOAuth = () => {
               });
             } catch (error) {
               logger.error('Failed to process Facebook callback', { error, attemptId });
+              
+              // Handle specific Facebook OAuth errors with better messaging
+              let userMessage = 'Failed to process Facebook connection. Please try again.';
+              const errorMsg = (error as Error).message?.toLowerCase() || '';
+              
+              if (errorMsg.includes('authorization code has been used') || 
+                  errorMsg.includes('already been processed')) {
+                userMessage = 'This connection attempt has already been processed. Please start a new connection.';
+              } else if (errorMsg.includes('expired')) {
+                userMessage = 'The connection attempt has expired. Please try connecting again.';
+              } else if (errorMsg.includes('timeout')) {
+                userMessage = 'Connection timed out. Please check your internet connection and try again.';
+              }
+              
               const errorId = errorHandler.log(error as Error);
-              errorHandler.showUserFriendlyError(errorId, 'Failed to process Facebook connection. Please try again.');
+              errorHandler.showUserFriendlyError(errorId, userMessage);
               
               cleanup();
               
               resolve({
                 success: false,
-                error: (error as Error).message
+                error: userMessage
               });
             }
           } else if (event.data.type === 'FACEBOOK_OAUTH_ERROR') {

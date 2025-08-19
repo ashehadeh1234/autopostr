@@ -85,6 +85,38 @@ function validateState(state: string | null, user: any, requestId: string) {
   }
 }
 
+// ============= REQUEST DEDUPLICATION =============
+const processedCodes = new Map<string, { timestamp: number, processing: boolean }>()
+
+function isCodeAlreadyProcessed(code: string, requestId: string): boolean {
+  const codeHash = btoa(code).slice(0, 16) // Use hash for privacy
+  const existing = processedCodes.get(codeHash)
+  
+  if (existing) {
+    const isExpired = Date.now() - existing.timestamp > 300000 // 5 minutes
+    if (isExpired) {
+      processedCodes.delete(codeHash)
+      return false
+    }
+    
+    console.log(`[${requestId}] Authorization code already processed or in progress`)
+    return true
+  }
+  
+  // Mark as processing
+  processedCodes.set(codeHash, { timestamp: Date.now(), processing: true })
+  return false
+}
+
+function markCodeCompleted(code: string, requestId: string) {
+  const codeHash = btoa(code).slice(0, 16)
+  const existing = processedCodes.get(codeHash)
+  if (existing) {
+    existing.processing = false
+    console.log(`[${requestId}] Code processing completed`)
+  }
+}
+
 // ============= TOKEN EXCHANGE =============
 async function exchangeCodeForToken(code: string, requestId: string): Promise<string> {
   console.log(`[${requestId}] Exchanging code for access token...`)
@@ -346,8 +378,14 @@ Deno.serve(async (req) => {
     if (action === 'handleCallback' && code) {
       console.log(`[${requestId}] Processing callback with code:`, code.slice(0, 10) + '...')
       
-      // Validate state parameter
-      validateState(state, user, requestId)
+      // Check for duplicate code processing
+      if (isCodeAlreadyProcessed(code, requestId)) {
+        throw new Error('Authorization code has already been processed. Please try connecting again.')
+      }
+      
+      try {
+        // Validate state parameter
+        validateState(state, user, requestId)
       
       // Exchange code for token
       const shortToken = await exchangeCodeForToken(code, requestId)
@@ -355,19 +393,28 @@ Deno.serve(async (req) => {
       // Get long-lived token
       const { token: userAccessToken, expiresIn } = await getLongLivedToken(shortToken, requestId)
       
-      // Fetch Facebook data
-      const { user: userData, pages } = await fetchFacebookData(userAccessToken, requestId)
-      
-      // Return pages for user selection instead of auto-saving
-      return new Response(JSON.stringify({ 
-        success: true, 
-        user: userData,
-        pages: pages,
-        userToken: userAccessToken,
-        message: `Found ${pages.length} Facebook pages available for connection.`
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+        // Fetch Facebook data
+        const { user: userData, pages } = await fetchFacebookData(userAccessToken, requestId)
+        
+        // Mark code as successfully processed
+        markCodeCompleted(code, requestId)
+        
+        // Return pages for user selection instead of auto-saving
+        return new Response(JSON.stringify({ 
+          success: true, 
+          user: userData,
+          pages: pages,
+          userToken: userAccessToken,
+          message: `Found ${pages.length} Facebook pages available for connection.`
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      } catch (error) {
+        // Clean up processed code on error
+        const codeHash = btoa(code).slice(0, 16)
+        processedCodes.delete(codeHash)
+        throw error
+      }
     }
 
     if (action === 'saveSelectedPages') {
