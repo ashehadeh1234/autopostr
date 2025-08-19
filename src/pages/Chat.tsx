@@ -74,7 +74,7 @@ const Chat = () => {
       console.log("Sending to n8n webhook:", webhookData);
 
       // Send to n8n webhook
-      const response = await fetch("https://ajs123456.app.n8n.cloud/webhook-test/bf41bcf6-20d2-48a3-ba36-978833e0f4ea", {
+      const response = await fetch("https://ajs123456.app.n8n.cloud/webhook/bf41bcf6-20d2-48a3-ba36-978833e0f4ea", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
