@@ -71,10 +71,10 @@ Deno.serve(async (req) => {
       throw new Error('At least one content type (message, image, or link) must be provided')
     }
 
-    // Get the connection for this page
+    // Get the connection for this page (without token exposure)
     const { data: connection, error: connectionError } = await supabase
       .from('social_connections')
-      .select('*')
+      .select('id, page_name, token_expires_at')
       .eq('user_id', user.id)
       .eq('platform', 'facebook')
       .eq('page_id', pageId)
@@ -96,9 +96,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Prepare post data with sanitization
+    // Get decrypted page access token using secure function
+    const { data: pageAccessToken, error: tokenError } = await supabase
+      .rpc('get_decrypted_page_token', { connection_id: connection.id })
+
+    if (tokenError || !pageAccessToken) {
+      console.error('Failed to get page token:', tokenError)
+      throw new Error('Failed to retrieve page access token')
+    }
+
+    // Prepare post data with sanitization and secure token
     const postData: any = {
-      access_token: connection.page_access_token
+      access_token: pageAccessToken
     }
 
     if (message) {

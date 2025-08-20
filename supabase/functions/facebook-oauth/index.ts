@@ -262,16 +262,33 @@ async function saveConnections(user: any, userData: any, pagesData: any, userAcc
         continue
       }
 
-      // Sanitize data before storage
+      // Encrypt tokens before storage for security
+      const { data: encryptedAccessToken, error: accessTokenError } = await supabase
+        .rpc('encrypt_token', { plaintext_token: userAccessToken })
+      
+      if (accessTokenError) {
+        console.error(`[${requestId}] Failed to encrypt access token:`, accessTokenError)
+        throw new Error('Failed to encrypt access token')
+      }
+
+      const { data: encryptedPageToken, error: pageTokenError } = await supabase
+        .rpc('encrypt_token', { plaintext_token: page.access_token })
+      
+      if (pageTokenError) {
+        console.error(`[${requestId}] Failed to encrypt page token:`, pageTokenError)
+        throw new Error('Failed to encrypt page token')
+      }
+
+      // Sanitize data before storage with encrypted tokens
       const connectionData = {
         user_id: user.id,
         platform: 'facebook',
         platform_user_id: String(userData.id).substring(0, 255),
         platform_username: String(userData.name).substring(0, 255),
-        access_token: userAccessToken,
+        access_token_encrypted: encryptedAccessToken,
         page_id: String(page.id).substring(0, 255),
         page_name: String(page.name).substring(0, 255),
-        page_access_token: page.access_token,
+        page_access_token_encrypted: encryptedPageToken,
         token_expires_at: expiresIn ? 
           new Date(Date.now() + expiresIn * 1000).toISOString() : null,
         permissions: Array.isArray(page.perms) ? page.perms.slice(0, 20) : [],

@@ -25,9 +25,10 @@ import { logger } from "./logger";
 export const connectionUtils = {
   /**
    * Loads all active social connections for a specific user.
+   * Uses secure approach that doesn't expose token values.
    * 
    * @param userId - The unique identifier of the user
-   * @returns Promise<Array> - Array of social connection objects
+   * @returns Promise<Array> - Array of social connection objects (without tokens)
    * @throws Error if database query fails
    * 
    * @example
@@ -38,9 +39,23 @@ export const connectionUtils = {
    */
   async loadSocialConnections(userId: string) {
     try {
+      // Select only safe fields, excluding token fields
       const { data, error } = await supabase
         .from('social_connections')
-        .select('*')
+        .select(`
+          id,
+          user_id,
+          platform,
+          platform_user_id,
+          platform_username,
+          page_id,
+          page_name,
+          permissions,
+          is_active,
+          token_expires_at,
+          created_at,
+          updated_at
+        `)
         .eq('user_id', userId)
         .eq('is_active', true);
 
@@ -49,7 +64,19 @@ export const connectionUtils = {
         throw error;
       }
 
-      return data || [];
+      // Ensure no token data is accidentally included
+      const safeConnections = (data || []).map(conn => ({
+        ...conn,
+        // Explicitly remove any token fields that might be included
+        access_token: undefined,
+        refresh_token: undefined,
+        page_access_token: undefined,
+        access_token_encrypted: undefined,
+        refresh_token_encrypted: undefined,
+        page_access_token_encrypted: undefined
+      }));
+
+      return safeConnections;
     } catch (error) {
       logger.error('Error loading social connections', error);
       throw error;
