@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
@@ -320,12 +320,12 @@ export type Database = {
       get_random_media_asset: {
         Args: { p_user_id: string }
         Returns: {
+          created_at: string
           id: string
           name: string
+          size: number
           type: string
           url: string
-          size: number
-          created_at: string
         }[]
       }
       get_user_role_in_workspace: {
@@ -333,7 +333,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       is_workspace_member: {
-        Args: { workspace_id_param: string; user_id_param?: string }
+        Args: { user_id_param?: string; workspace_id_param: string }
         Returns: boolean
       }
     }
