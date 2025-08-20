@@ -207,12 +207,10 @@ export type Database = {
       }
       social_connections: {
         Row: {
-          access_token: string
           access_token_encrypted: string | null
           created_at: string
           id: string
           is_active: boolean
-          page_access_token: string | null
           page_access_token_encrypted: string | null
           page_id: string | null
           page_name: string | null
@@ -220,19 +218,16 @@ export type Database = {
           platform: string
           platform_user_id: string
           platform_username: string | null
-          refresh_token: string | null
           refresh_token_encrypted: string | null
           token_expires_at: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
-          access_token: string
           access_token_encrypted?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
-          page_access_token?: string | null
           page_access_token_encrypted?: string | null
           page_id?: string | null
           page_name?: string | null
@@ -240,19 +235,16 @@ export type Database = {
           platform: string
           platform_user_id: string
           platform_username?: string | null
-          refresh_token?: string | null
           refresh_token_encrypted?: string | null
           token_expires_at?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
-          access_token?: string
           access_token_encrypted?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
-          page_access_token?: string | null
           page_access_token_encrypted?: string | null
           page_id?: string | null
           page_name?: string | null
@@ -260,7 +252,6 @@ export type Database = {
           platform?: string
           platform_user_id?: string
           platform_username?: string | null
-          refresh_token?: string | null
           refresh_token_encrypted?: string | null
           token_expires_at?: string | null
           updated_at?: string
