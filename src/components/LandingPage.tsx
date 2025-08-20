@@ -3,11 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Upload, Brain, Calendar, Facebook, Instagram, TwitterIcon as X, Linkedin, Youtube, Sparkles, Shield, Clock, RotateCcw } from "lucide-react";
-import heroIllustration from "@/assets/hero-illustration.jpg";
-import featureLibrary from "@/assets/feature-library.jpg";
-import featureAI from "@/assets/feature-ai.jpg";
-import featureSchedule from "@/assets/feature-schedule.jpg";
-import featurePlatforms from "@/assets/feature-platforms.jpg";
+import heroIllustration from "@/assets/hero-illustration-medium.jpg";
+import featureLibrary from "@/assets/feature-library-small.jpg";
+import featureAI from "@/assets/feature-ai-small.jpg";
+import featureSchedule from "@/assets/feature-schedule-small.jpg";
+import featurePlatforms from "@/assets/feature-platforms-small.jpg";
 
 const LandingPage = () => {
   const navigate = useNavigate();
