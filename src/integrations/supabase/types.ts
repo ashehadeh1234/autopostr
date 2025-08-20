@@ -208,10 +208,12 @@ export type Database = {
       social_connections: {
         Row: {
           access_token: string
+          access_token_encrypted: string | null
           created_at: string
           id: string
           is_active: boolean
           page_access_token: string | null
+          page_access_token_encrypted: string | null
           page_id: string | null
           page_name: string | null
           permissions: string[] | null
@@ -219,16 +221,19 @@ export type Database = {
           platform_user_id: string
           platform_username: string | null
           refresh_token: string | null
+          refresh_token_encrypted: string | null
           token_expires_at: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           access_token: string
+          access_token_encrypted?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
           page_access_token?: string | null
+          page_access_token_encrypted?: string | null
           page_id?: string | null
           page_name?: string | null
           permissions?: string[] | null
@@ -236,16 +241,19 @@ export type Database = {
           platform_user_id: string
           platform_username?: string | null
           refresh_token?: string | null
+          refresh_token_encrypted?: string | null
           token_expires_at?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           access_token?: string
+          access_token_encrypted?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
           page_access_token?: string | null
+          page_access_token_encrypted?: string | null
           page_id?: string | null
           page_name?: string | null
           permissions?: string[] | null
@@ -253,6 +261,7 @@ export type Database = {
           platform_user_id?: string
           platform_username?: string | null
           refresh_token?: string | null
+          refresh_token_encrypted?: string | null
           token_expires_at?: string | null
           updated_at?: string
           user_id?: string
@@ -317,6 +326,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      decrypt_token: {
+        Args: { encrypted_token: string }
+        Returns: string
+      }
+      encrypt_token: {
+        Args: { plaintext_token: string }
+        Returns: string
+      }
+      generate_token_key: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_decrypted_access_token: {
+        Args: { connection_id: string }
+        Returns: string
+      }
+      get_decrypted_page_token: {
+        Args: { connection_id: string }
+        Returns: string
+      }
       get_random_media_asset: {
         Args: { p_user_id: string }
         Returns: {
@@ -335,6 +364,10 @@ export type Database = {
       is_workspace_member: {
         Args: { user_id_param?: string; workspace_id_param: string }
         Returns: boolean
+      }
+      migrate_existing_tokens: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
     }
     Enums: {
