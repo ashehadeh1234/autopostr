@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import LandingPage from "./components/LandingPage";
 import AppLayout from "./components/AppLayout";
 import Chat from "./pages/Chat";
+import Compose from "./pages/Compose";
 import Library from "./pages/Library";
 import Auth from "./pages/Auth";
 import Connections from "./pages/Connections";
@@ -84,7 +85,8 @@ const App = () => {
                     </ProtectedRoute>
                   }
                 >
-                  <Route index element={<Chat />} />
+                  <Route index element={<Compose />} />
+                  <Route path="compose" element={<Compose />} />
                   <Route path="chat" element={<Chat />} />
                   <Route path="library" element={<Library />} />
                   <Route path="connections" element={<Connections />} />

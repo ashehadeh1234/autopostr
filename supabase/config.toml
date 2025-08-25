@@ -42,6 +42,12 @@ verify_jwt = true
 [functions.facebook-post]
 verify_jwt = true
 
+[functions.post-facebook]
+verify_jwt = true
+
+[functions.post-instagram]
+verify_jwt = true
+
 [functions.get-random-media]
 verify_jwt = false
 

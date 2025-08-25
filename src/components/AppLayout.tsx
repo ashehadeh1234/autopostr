@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navigationItems = [
-  { title: "Post Now", url: "/app/chat", icon: MessageSquare },
+  { title: "Compose", url: "/app/compose", icon: MessageSquare },
   { title: "Library", url: "/app/library", icon: FolderOpen },
   { title: "Connections", url: "/app/connections", icon: LinkIcon },
   { title: "Schedule", url: "/app/schedule", icon: Calendar },
@@ -157,9 +157,13 @@ function AppHeader() {
               <User className="w-4 h-4 mr-2" />
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/app/settings')}>
               <Settings className="w-4 h-4 mr-2" />
               Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/app/social-settings')}>
+              <LinkIcon className="w-4 h-4 mr-2" />
+              Social Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
