@@ -309,7 +309,6 @@ Deno.serve(async (req) => {
     console.log('=== Facebook OAuth Enhanced Function Called ===');
     console.log('Method:', req.method);
     console.log('URL:', req.url);
-    console.log('Headers:', Object.fromEntries(req.headers.entries()));
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -318,34 +317,12 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     const user = await validateUser(supabase, authHeader);
     
-    const url = new URL(req.url);
+    // Parse request body
+    const requestBody = await req.json();
+    const action = requestBody.action;
     
-    // Get request body
-    let requestBody = null;
-    let action = null;
-    
-    if (req.method === 'POST') {
-      try {
-        const bodyText = await req.text();
-        console.log('Raw body text:', bodyText);
-        if (bodyText) {
-          requestBody = JSON.parse(bodyText);
-          action = requestBody.action;
-          console.log('Parsed body:', requestBody);
-          console.log('Extracted action:', action);
-        }
-      } catch (error) {
-        console.error('Failed to parse request body:', error);
-      }
-    }
-    
-    // Fallback to URL params if no action in body
-    if (!action) {
-      action = url.searchParams.get('action');
-      console.log('Action from URL params:', action);
-    }
-
-    console.log('Final action:', action);
+    console.log('Request body:', requestBody);
+    console.log('Action:', action);
 
     if (!action) {
       console.error('No action found in request');
@@ -359,6 +336,7 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case 'getAuthUrl': {
+        const url = new URL(req.url);
         const redirectUri = url.searchParams.get('redirect_uri') || 
           `${url.protocol}//${url.host}/facebook-callback.html`;
         const state = `${user.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;

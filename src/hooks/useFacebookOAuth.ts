@@ -32,7 +32,7 @@ export const useFacebookOAuth = () => {
     try {
       // Step 1: Get Facebook OAuth URL
       const { data: authData, error: authError } = await supabase.functions.invoke('facebook-oauth-enhanced', {
-        body: JSON.stringify({ action: 'getAuthUrl' }),
+        body: { action: 'getAuthUrl' },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
@@ -83,12 +83,12 @@ export const useFacebookOAuth = () => {
             try {
               // Step 4: Process the callback with our edge function
               const { data: callbackData, error: callbackError } = await supabase.functions.invoke('facebook-oauth-enhanced', {
-                body: JSON.stringify({ 
+                body: { 
                   action: 'getPages',
                   code: event.data.code,
                   state: event.data.state,
                   redirect_uri: `${window.location.origin}/facebook-callback.html`
-                }),
+                },
                 headers: {
                   Authorization: `Bearer ${session.access_token}`,
                   'Content-Type': 'application/json'
