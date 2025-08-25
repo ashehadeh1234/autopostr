@@ -306,6 +306,11 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log('=== Facebook OAuth Enhanced Function Called ===');
+    console.log('Method:', req.method);
+    console.log('URL:', req.url);
+    console.log('Headers:', Object.fromEntries(req.headers.entries()));
+    
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -322,9 +327,12 @@ Deno.serve(async (req) => {
     if (req.method === 'POST') {
       try {
         const bodyText = await req.text();
+        console.log('Raw body text:', bodyText);
         if (bodyText) {
           requestBody = JSON.parse(bodyText);
           action = requestBody.action;
+          console.log('Parsed body:', requestBody);
+          console.log('Extracted action:', action);
         }
       } catch (error) {
         console.error('Failed to parse request body:', error);
@@ -334,10 +342,20 @@ Deno.serve(async (req) => {
     // Fallback to URL params if no action in body
     if (!action) {
       action = url.searchParams.get('action');
+      console.log('Action from URL params:', action);
     }
 
-    console.log('Action received:', action);
-    console.log('Request body:', requestBody);
+    console.log('Final action:', action);
+
+    if (!action) {
+      console.error('No action found in request');
+      return new Response(JSON.stringify({ 
+        error: 'No action specified. Use getAuthUrl, getPages, handleCallback, or saveSelectedPages' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     switch (action) {
       case 'getAuthUrl': {
