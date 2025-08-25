@@ -1,59 +1,20 @@
-/**
- * @fileoverview Connection Card Component
- * 
- * A reusable card component for displaying and managing social media platform
- * connections. Handles connection status, error states, and user interactions.
- * 
- * @author Social Media Manager Team
- * @version 2.0 - Extracted from Connections page
- */
-
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { CheckCircle, XCircle, Loader2, AlertCircle } from "lucide-react";
-import { Connection } from '@/constants/platforms';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import type { Connection } from '@/constants/platforms';
 
-/**
- * Props for the ConnectionCard component.
- */
 interface ConnectionCardProps {
-  /** The connection object with platform details */
   connection: Connection;
-  /** Whether a connection attempt is in progress */
   connecting: boolean;
-  /** Error message to display, if any */
   connectionError?: string;
-  /** Callback when user clicks connect/disconnect button */
   onConnect: (connectionId: string) => void;
-  /** Callback when user toggles auto-posting switch */
   onToggleEnabled: (connectionId: string) => void;
 }
 
-/**
- * ConnectionCard displays a social media platform connection with its status,
- * controls for connecting/disconnecting, and auto-posting toggle.
- * 
- * Features:
- * - Visual connection status with badges
- * - Connect/disconnect button with loading states
- * - Auto-posting toggle for connected platforms
- * - Error message display
- * - Connected pages listing (for Facebook)
- * 
- * @example
- * ```tsx
- * <ConnectionCard
- *   connection={facebookConnection}
- *   connecting={isConnecting}
- *   connectionError={error}
- *   onConnect={handleConnect}
- *   onToggleEnabled={handleToggle}
- * />
- * ```
- */
 export const ConnectionCard: React.FC<ConnectionCardProps> = ({
   connection,
   connecting,
@@ -61,96 +22,105 @@ export const ConnectionCard: React.FC<ConnectionCardProps> = ({
   onConnect,
   onToggleEnabled
 }) => {
-  const Icon = connection.icon;
+  const handleConnect = () => {
+    onConnect(connection.id);
+  };
+
+  const handleToggleEnabled = () => {
+    onToggleEnabled(connection.id);
+  };
 
   return (
-    <Card className="relative">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+    <Card className="h-full">
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between mb-4">
           <div className="flex items-center space-x-3">
             <div 
-              className="p-2 rounded-lg"
-              style={{ backgroundColor: `${connection.color}15`, color: connection.color }}
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold"
+              style={{ backgroundColor: connection.color }}
             >
-              <Icon className="h-5 w-5" />
+              <connection.icon />
             </div>
             <div>
-              <CardTitle className="text-lg">{connection.name}</CardTitle>
+              <h3 className="font-semibold text-lg">{connection.name}</h3>
               <div className="flex items-center space-x-2 mt-1">
                 {connection.connected ? (
-                  <Badge variant="default" className="bg-green-500/10 text-green-700 dark:text-green-400">
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Connected
+                  <Badge variant="default" className="flex items-center space-x-1">
+                    <CheckCircle className="w-3 h-3" />
+                    <span>Connected</span>
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="border-muted-foreground/20">
-                    <XCircle className="h-3 w-3 mr-1" />
-                    Not Connected
+                  <Badge variant="secondary" className="flex items-center space-x-1">
+                    <XCircle className="w-3 h-3" />
+                    <span>Not Connected</span>
                   </Badge>
                 )}
               </div>
             </div>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <CardDescription className="mb-4">
+
+        <p className="text-sm text-muted-foreground mb-4">
           {connection.description}
-        </CardDescription>
-        
-        <div className="space-y-3">
-          <Button 
-            onClick={() => onConnect(connection.id)}
-            variant={connection.connected ? "destructive" : "default"}
-            className="w-full"
+        </p>
+
+        {connectionError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{connectionError}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="space-y-4">
+          <Button
+            onClick={handleConnect}
             disabled={connecting}
+            variant={connection.connected ? "outline" : "default"}
+            className="w-full"
           >
             {connecting ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
                 Connecting...
               </>
+            ) : connection.connected ? (
+              'Disconnect'
             ) : (
-              connection.connected ? "Disconnect" : "Connect"
+              'Connect'
             )}
           </Button>
-          
+
           {connection.connected && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Auto-posting</span>
+            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+              <div>
+                <p className="text-sm font-medium">Auto-posting</p>
+                <p className="text-xs text-muted-foreground">
+                  Enable automatic posting to this platform
+                </p>
+              </div>
               <Switch
                 checked={connection.enabled}
-                onCheckedChange={() => onToggleEnabled(connection.id)}
+                onCheckedChange={handleToggleEnabled}
               />
             </div>
           )}
-        </div>
 
-        {/* Show connection error if any */}
-        {connectionError && (
-          <div className="mt-3 p-2 bg-destructive/10 rounded-md border border-destructive/20">
-            <div className="flex items-start space-x-2">
-              <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-destructive">
-                {connectionError}
+          {connection.connected && connection.pages && connection.pages.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Connected Pages</p>
+              <div className="space-y-1">
+                {connection.pages.map((page: any) => (
+                  <div key={page.page_id} className="flex items-center justify-between text-xs bg-muted/30 p-2 rounded">
+                    <span>{page.name}</span>
+                    {page.is_default && (
+                      <Badge variant="outline" className="text-xs">Default</Badge>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Show connected pages for Facebook */}
-        {connection.connected && connection.pages && connection.pages.length > 0 && (
-          <div className="mt-3 p-3 bg-muted/50 rounded-md">
-            <h4 className="text-sm font-medium mb-2">Connected Pages</h4>
-            <div className="space-y-1">
-              {connection.pages.map((page, index) => (
-                <div key={index} className="text-xs text-muted-foreground">
-                  • {page.pageName}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </CardContent>
     </Card>
   );

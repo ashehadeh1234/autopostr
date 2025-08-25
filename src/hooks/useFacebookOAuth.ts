@@ -1,233 +1,156 @@
-import { useState, useRef } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { errorHandler } from '@/utils/errorHandling';
+import { useAuth } from '@/contexts/AuthContext';
 import { logger } from '@/utils/logger';
 
 interface FacebookPage {
   id: string;
   name: string;
   access_token: string;
-  instagram_business_account: any;
+  instagram_business_account?: any;
 }
 
 interface FacebookOAuthResult {
   success: boolean;
-  message?: string;
   error?: string;
   pages?: FacebookPage[];
   userToken?: string;
 }
 
 export const useFacebookOAuth = () => {
-  const { user, session } = useAuth();
+  const { session } = useAuth();
   const [connecting, setConnecting] = useState(false);
-  const connectionAttemptRef = useRef<string | null>(null);
-
-  const resetConnectionState = () => {
-    connectionAttemptRef.current = null;
-    setConnecting(false);
-  };
 
   const handleFacebookConnect = async (): Promise<FacebookOAuthResult> => {
     if (!session?.access_token) {
-      logger.error('Facebook connect failed: no session token');
-      return { success: false, error: 'Authentication required' };
+      return { success: false, error: 'Not authenticated' };
     }
 
-    // Prevent multiple simultaneous connection attempts
-    if (connectionAttemptRef.current) {
-      logger.warn('Facebook connection already in progress');
-      return { success: false, error: 'Connection already in progress. Please wait for the current attempt to complete.' };
-    }
-
-    const attemptId = crypto.randomUUID();
-    connectionAttemptRef.current = attemptId;
     setConnecting(true);
-    
-    logger.info('Starting Facebook OAuth process', { attemptId });
-    
+    logger.info('Starting Facebook OAuth process');
+
     try {
-      const response = await supabase.functions.invoke('facebook-oauth', {
-        body: { action: 'getAuthUrl' },
+      // Step 1: Get Facebook OAuth URL
+      const { data: authData, error: authError } = await supabase.functions.invoke('facebook-oauth-enhanced', {
+        body: JSON.stringify({ action: 'getAuthUrl' }),
         headers: {
-          Authorization: `Bearer ${session.access_token}`
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
         }
       });
 
-      if (response.error) {
-        throw new Error(response.error.message || 'Failed to get Facebook auth URL');
+      if (authError || !authData?.authUrl) {
+        throw new Error(authError?.message || 'Failed to get Facebook authorization URL');
       }
 
-      logger.info('Auth URL received, opening popup', { attemptId });
+      logger.info('Got Facebook OAuth URL, opening popup');
 
-      const authWindow = window.open(
-        response.data.authUrl, 
-        'facebook-oauth', 
-        'width=600,height=600,scrollbars=yes,resizable=yes'
+      // Step 2: Open Facebook OAuth popup
+      const popup = window.open(
+        authData.authUrl,
+        'facebook-oauth',
+        'width=600,height=700,scrollbars=yes,resizable=yes'
       );
-      
-      if (!authWindow) {
-        logger.error('Failed to open popup window');
-        throw new Error('Failed to open authentication window. Please allow popups for this site.');
+
+      if (!popup) {
+        throw new Error('Popup was blocked. Please allow popups for this site.');
       }
-      
-      // Listen for OAuth completion
-      return new Promise((resolve) => {
-        let resolved = false;
-        
-        const cleanup = () => {
-          if (!resolved) {
-            resolved = true;
-            window.removeEventListener('message', handleMessage);
-            connectionAttemptRef.current = null;
-            setConnecting(false);
-          }
-        };
+
+      // Step 3: Wait for OAuth callback
+      const result = await new Promise<FacebookOAuthResult>((resolve) => {
+        const timeout = setTimeout(() => {
+          popup.close();
+          resolve({ success: false, error: 'OAuth timeout - please try again' });
+        }, 300000); // 5 minute timeout
 
         const handleMessage = async (event: MessageEvent) => {
-          // Ignore stale events from previous attempts
-          if (connectionAttemptRef.current !== attemptId) {
-            logger.warn('Ignoring message from stale connection attempt');
+          // Validate origin for security
+          if (event.origin !== window.location.origin) {
+            logger.warn('Received message from invalid origin', { origin: event.origin });
             return;
           }
-          
-          // Allow messages from same origin or any origin for flexibility
-          const validOrigin = event.origin === window.location.origin || 
-                             event.origin === 'null' || 
-                             event.origin.includes(window.location.hostname);
-          
-          if (!validOrigin) {
-            logger.warn('Message from invalid origin', { origin: event.origin });
-            return;
-          }
-          
-          logger.info('Received message from popup', { 
-            type: event.data.type, 
-            attemptId,
-            origin: event.origin 
-          });
-          
-          if (event.data.type === 'FACEBOOK_OAUTH_CODE') {
+
+          clearTimeout(timeout);
+          window.removeEventListener('message', handleMessage);
+          popup.close();
+
+          if (event.data.type === 'FACEBOOK_OAUTH_SUCCESS') {
+            logger.info('Facebook OAuth callback received', { 
+              code: !!event.data.code,
+              state: !!event.data.state 
+            });
+
             try {
-              logger.info('Processing OAuth callback', { attemptId });
-              
-              // Add small delay to prevent race conditions with multiple tabs
-              await new Promise(resolve => setTimeout(resolve, 100));
-              
-              // Double-check we're still the active attempt
-              if (connectionAttemptRef.current !== attemptId) {
-                logger.warn('Connection attempt superseded, canceling');
-                return;
-              }
-              
-              const result = await supabase.functions.invoke('facebook-oauth', {
-                body: { 
-                  action: 'handleCallback',
+              // Step 4: Process the callback with our edge function
+              const { data: callbackData, error: callbackError } = await supabase.functions.invoke('facebook-oauth-enhanced', {
+                body: JSON.stringify({ 
+                  action: 'getPages',
                   code: event.data.code,
-                  state: event.data.state
-                },
+                  state: event.data.state,
+                  redirect_uri: `${window.location.origin}/facebook-callback.html`
+                }),
                 headers: {
-                  Authorization: `Bearer ${session.access_token}`
+                  Authorization: `Bearer ${session.access_token}`,
+                  'Content-Type': 'application/json'
                 }
               });
 
-              if (result.error) {
-                throw new Error(result.error.message || 'Callback processing failed');
+              if (callbackError || !callbackData?.success) {
+                throw new Error(callbackError?.message || callbackData?.error || 'Failed to process Facebook callback');
               }
-              
-              logger.info('Facebook connection successful', { 
-                pages: result.data.pages?.length || 0,
-                attemptId 
+
+              logger.info('Facebook OAuth completed successfully', { 
+                pagesCount: callbackData.pages?.length || 0 
               });
-              
-              // Don't cleanup here - let the parent component handle state after page selection
-              window.removeEventListener('message', handleMessage);
-              connectionAttemptRef.current = null;
-              // Keep setConnecting(true) until page selection is complete
-              
+
               resolve({
                 success: true,
-                message: result.data.message,
-                pages: result.data.pages || [],
-                userToken: result.data.userToken
+                pages: callbackData.pages || [],
+                userToken: callbackData.userToken
               });
             } catch (error) {
-              logger.error('Failed to process Facebook callback', { error, attemptId });
-              
-              // Handle specific Facebook OAuth errors with better messaging
-              let userMessage = 'Failed to process Facebook connection. Please try again.';
-              const errorMsg = (error as Error).message?.toLowerCase() || '';
-              
-              if (errorMsg.includes('authorization code has been used') || 
-                  errorMsg.includes('already been processed')) {
-                userMessage = 'This connection attempt has already been processed. Please start a new connection.';
-              } else if (errorMsg.includes('expired')) {
-                userMessage = 'The connection attempt has expired. Please try connecting again.';
-              } else if (errorMsg.includes('timeout')) {
-                userMessage = 'Connection timed out. Please check your internet connection and try again.';
-              }
-              
-              const errorId = errorHandler.log(error as Error);
-              errorHandler.showUserFriendlyError(errorId, userMessage);
-              
-              cleanup();
-              
+              logger.error('Failed to process Facebook callback', { error });
               resolve({
                 success: false,
-                error: userMessage
+                error: error instanceof Error ? error.message : 'Failed to process Facebook authentication'
               });
             }
           } else if (event.data.type === 'FACEBOOK_OAUTH_ERROR') {
-            const errorMsg = event.data.error || "Failed to connect to Facebook";
-            logger.error('Facebook OAuth error received', { error: errorMsg, attemptId });
-            const errorId = errorHandler.log(new Error(errorMsg));
-            errorHandler.showUserFriendlyError(errorId);
-            
-            cleanup();
-            
+            logger.error('Facebook OAuth error received', { error: event.data.error });
             resolve({
               success: false,
-              error: errorMsg
+              error: event.data.error || 'Facebook authentication failed'
             });
           }
         };
-        
+
         window.addEventListener('message', handleMessage);
-        
-        // Set timeout for OAuth process with proper cleanup
-        const timeoutId = setTimeout(() => {
-          if (connectionAttemptRef.current === attemptId && !resolved) {
-            logger.warn('Facebook OAuth timed out', { attemptId });
-            
-            if (authWindow && !authWindow.closed) {
-              authWindow.close();
-            }
-            
-            cleanup();
-            clearTimeout(timeoutId);
-            
-            resolve({
-              success: false,
-              error: 'Authentication timed out. Please try again.'
-            });
+
+        // Check if popup was closed manually
+        const checkClosed = setInterval(() => {
+          if (popup.closed) {
+            clearInterval(checkClosed);
+            clearTimeout(timeout);
+            window.removeEventListener('message', handleMessage);
+            resolve({ success: false, error: 'Authentication was cancelled' });
           }
-        }, 300000); // 5 minute timeout
+        }, 1000);
       });
-      
+
+      return result;
     } catch (error) {
-      logger.error('Failed to start Facebook connection', { error, attemptId });
-      const errorId = errorHandler.log(error as Error);
-      errorHandler.showUserFriendlyError(errorId, 'Failed to start Facebook connection. Please try again.');
-      
-      connectionAttemptRef.current = null;
-      setConnecting(false);
-      
+      logger.error('Facebook OAuth error', { error });
       return {
         success: false,
-        error: (error as Error).message
+        error: error instanceof Error ? error.message : 'An unexpected error occurred'
       };
+    } finally {
+      setConnecting(false);
     }
+  };
+
+  const resetConnectionState = () => {
+    setConnecting(false);
   };
 
   return {

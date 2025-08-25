@@ -15,7 +15,6 @@ import Auth from "./pages/Auth";
 import Connections from "./pages/Connections";
 import Schedule from "./pages/Schedule";
 import Settings from "./pages/Settings";
-import SocialSettings from "./pages/SocialSettings";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -93,7 +92,6 @@ const App = () => {
                   <Route path="schedule" element={<Schedule />} />
                   <Route path="analytics" element={<Index />} />
                   <Route path="settings" element={<Settings />} />
-                  <Route path="social-settings" element={<SocialSettings />} />
                 </Route>
                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

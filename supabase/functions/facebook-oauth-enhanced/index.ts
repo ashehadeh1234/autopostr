@@ -333,6 +333,46 @@ Deno.serve(async (req) => {
         });
       }
       
+      case 'getPages': {
+        const { code, state, redirect_uri } = await req.json();
+        
+        if (!code) {
+          throw new Error('Authorization code is required');
+        }
+
+        // Validate state parameter
+        const [stateUserId] = state.split('-');
+        if (stateUserId !== user.id) {
+          throw new Error('Invalid state parameter');
+        }
+
+        console.log('Exchanging code for token...');
+        const shortToken = await exchangeCodeForToken(code, redirect_uri);
+        
+        console.log('Getting long-lived token...');
+        const longLivedToken = await getLongLivedToken(shortToken);
+        
+        console.log('Fetching user profile...');
+        const userProfile = await fetchUserProfile(longLivedToken.access_token);
+        
+        console.log('Fetching pages...');
+        const pages = await fetchPages(longLivedToken.access_token);
+
+        // Return pages for user selection instead of auto-saving
+        return new Response(JSON.stringify({
+          success: true,
+          pages: pages.data.map(page => ({
+            id: page.id,
+            name: page.name,
+            access_token: page.access_token,
+            instagram_business_account: null // Will be fetched when pages are selected
+          })),
+          userToken: longLivedToken.access_token
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
       case 'handleCallback': {
         const { code, state, redirect_uri } = await req.json();
         
