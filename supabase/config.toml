@@ -36,6 +36,9 @@ pop3_port = 54327
 [functions.facebook-oauth]
 verify_jwt = false
 
+[functions.facebook-oauth-enhanced]
+verify_jwt = true
+
 [functions.facebook-post]
 verify_jwt = true
 
