@@ -315,22 +315,34 @@ Deno.serve(async (req) => {
     
     const url = new URL(req.url);
     
-    // Get action from body for POST requests
-    let action = null;
+    // Get request body
     let requestBody = null;
+    let action = null;
     
-    try {
-      requestBody = await req.json();
-      action = requestBody.action;
-    } catch (error) {
-      // If no JSON body, try URL params (for backwards compatibility)
+    if (req.method === 'POST') {
+      try {
+        const bodyText = await req.text();
+        if (bodyText) {
+          requestBody = JSON.parse(bodyText);
+          action = requestBody.action;
+        }
+      } catch (error) {
+        console.error('Failed to parse request body:', error);
+      }
+    }
+    
+    // Fallback to URL params if no action in body
+    if (!action) {
       action = url.searchParams.get('action');
     }
+
+    console.log('Action received:', action);
+    console.log('Request body:', requestBody);
 
     switch (action) {
       case 'getAuthUrl': {
         const redirectUri = url.searchParams.get('redirect_uri') || 
-          `${url.protocol}//${url.host}/api/facebook/callback`;
+          `${url.protocol}//${url.host}/facebook-callback.html`;
         const state = `${user.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         
         const authUrl = getAuthUrl(state, redirectUri);
