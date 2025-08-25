@@ -161,9 +161,9 @@ function AppHeader() {
               <Settings className="w-4 h-4 mr-2" />
               Settings
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/app/social-settings')}>
+            <DropdownMenuItem onClick={() => navigate('/app/connections')}>
               <LinkIcon className="w-4 h-4 mr-2" />
-              Social Settings
+              Connections
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut} className="text-destructive">

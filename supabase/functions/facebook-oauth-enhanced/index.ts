@@ -427,6 +427,43 @@ Deno.serve(async (req) => {
         });
       }
       
+      case 'saveSelectedPages': {
+        const { selectedPages, userToken } = await req.json();
+
+        if (!selectedPages || !Array.isArray(selectedPages)) {
+          return new Response(
+            JSON.stringify({ error: 'Selected pages data is required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        console.log('Saving selected pages:', selectedPages.length);
+
+        // Save each selected page
+        for (const page of selectedPages) {
+          await saveConnectionData(
+            supabase,
+            user.id,
+            {
+              id: user.id,
+              name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+              email: user.email || ''
+            },
+            { access_token: userToken },
+            { data: [page] }, // Single page in array format
+            { data: [] } // No ad accounts for page selection
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: `Successfully connected ${selectedPages.length} page(s)` 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       default:
         return new Response(JSON.stringify({ 
           error: 'Invalid action. Use getAuthUrl or handleCallback' 

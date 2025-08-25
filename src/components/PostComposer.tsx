@@ -209,7 +209,7 @@ const PostComposer: React.FC = () => {
             <p className="text-muted-foreground mb-4">
               You need to connect your Facebook account first to start posting content.
             </p>
-            <Button onClick={() => window.location.href = '/app/social-settings'}>
+            <Button onClick={() => window.location.href = '/app/connections'}>
               Connect Facebook
             </Button>
           </div>

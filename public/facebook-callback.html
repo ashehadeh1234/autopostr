@@ -111,7 +111,7 @@
             document.querySelector('.loading').innerHTML = 'Success! Completing connection...';
             
             sendMessageAndClose({
-                type: 'FACEBOOK_OAUTH_CODE',
+                type: 'FACEBOOK_OAUTH_SUCCESS',
                 code: code,
                 state: state
             });

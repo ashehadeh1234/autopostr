@@ -56,7 +56,7 @@ export const FacebookPageSelector: React.FC<FacebookPageSelectorProps> = ({
     try {
       const selectedPageData = pages.filter(page => selectedPages.includes(page.id));
       
-      const response = await supabase.functions.invoke('facebook-oauth', {
+      const response = await supabase.functions.invoke('facebook-oauth-enhanced', {
         body: { 
           action: 'saveSelectedPages',
           selectedPages: selectedPageData,
