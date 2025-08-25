@@ -314,7 +314,18 @@ Deno.serve(async (req) => {
     const user = await validateUser(supabase, authHeader);
     
     const url = new URL(req.url);
-    const action = url.searchParams.get('action');
+    
+    // Get action from body for POST requests
+    let action = null;
+    let requestBody = null;
+    
+    try {
+      requestBody = await req.json();
+      action = requestBody.action;
+    } catch (error) {
+      // If no JSON body, try URL params (for backwards compatibility)
+      action = url.searchParams.get('action');
+    }
 
     switch (action) {
       case 'getAuthUrl': {
@@ -334,7 +345,7 @@ Deno.serve(async (req) => {
       }
       
       case 'getPages': {
-        const { code, state, redirect_uri } = await req.json();
+        const { code, state, redirect_uri } = requestBody || {};
         
         if (!code) {
           throw new Error('Authorization code is required');
@@ -374,7 +385,7 @@ Deno.serve(async (req) => {
       }
 
       case 'handleCallback': {
-        const { code, state, redirect_uri } = await req.json();
+        const { code, state, redirect_uri } = requestBody || {};
         
         if (!code) {
           throw new Error('Authorization code is required');
@@ -428,7 +439,7 @@ Deno.serve(async (req) => {
       }
       
       case 'saveSelectedPages': {
-        const { selectedPages, userToken } = await req.json();
+        const { selectedPages, userToken } = requestBody || {};
 
         if (!selectedPages || !Array.isArray(selectedPages)) {
           return new Response(
@@ -466,7 +477,7 @@ Deno.serve(async (req) => {
       
       default:
         return new Response(JSON.stringify({ 
-          error: 'Invalid action. Use getAuthUrl or handleCallback' 
+          error: 'Invalid action. Use getAuthUrl, getPages, handleCallback, or saveSelectedPages' 
         }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
