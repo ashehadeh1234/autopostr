@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      ad_accounts: {
+        Row: {
+          ad_account_id: string
+          created_at: string | null
+          currency: string
+          is_default: boolean | null
+          name: string
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ad_account_id: string
+          created_at?: string | null
+          currency?: string
+          is_default?: boolean | null
+          name: string
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ad_account_id?: string
+          created_at?: string | null
+          currency?: string
+          is_default?: boolean | null
+          name?: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       assets: {
         Row: {
           created_at: string
@@ -52,6 +85,133 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      comments: {
+        Row: {
+          author_id: string
+          author_name: string
+          author_type: string
+          created_at: string | null
+          created_at_fb: string
+          id: string
+          is_hidden: boolean | null
+          is_liked: boolean | null
+          last_action: Json | null
+          message: string
+          page_id: string
+          parent_id: string | null
+          post_id: string
+          status: Database["public"]["Enums"]["comment_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          author_id: string
+          author_name: string
+          author_type?: string
+          created_at?: string | null
+          created_at_fb: string
+          id: string
+          is_hidden?: boolean | null
+          is_liked?: boolean | null
+          last_action?: Json | null
+          message: string
+          page_id: string
+          parent_id?: string | null
+          post_id: string
+          status?: Database["public"]["Enums"]["comment_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          author_id?: string
+          author_name?: string
+          author_type?: string
+          created_at?: string | null
+          created_at_fb?: string
+          id?: string
+          is_hidden?: boolean | null
+          is_liked?: boolean | null
+          last_action?: Json | null
+          message?: string
+          page_id?: string
+          parent_id?: string | null
+          post_id?: string
+          status?: Database["public"]["Enums"]["comment_status"] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "fb_pages"
+            referencedColumns: ["page_id"]
+          },
+        ]
+      }
+      fb_pages: {
+        Row: {
+          created_at: string | null
+          is_default: boolean | null
+          name: string
+          page_access_token_encrypted: string | null
+          page_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          is_default?: boolean | null
+          name: string
+          page_access_token_encrypted?: string | null
+          page_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          is_default?: boolean | null
+          name?: string
+          page_access_token_encrypted?: string | null
+          page_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ig_accounts: {
+        Row: {
+          created_at: string | null
+          ig_user_id: string
+          is_default: boolean | null
+          page_id: string
+          updated_at: string | null
+          username: string
+        }
+        Insert: {
+          created_at?: string | null
+          ig_user_id: string
+          is_default?: boolean | null
+          page_id: string
+          updated_at?: string | null
+          username: string
+        }
+        Update: {
+          created_at?: string | null
+          ig_user_id?: string
+          is_default?: boolean | null
+          page_id?: string
+          updated_at?: string | null
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ig_accounts_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "fb_pages"
+            referencedColumns: ["page_id"]
+          },
+        ]
       }
       page_connections: {
         Row: {
@@ -156,6 +316,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      scheduled_posts: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          id: string
+          link_url: string | null
+          media_url: string | null
+          message: string | null
+          published_at: string | null
+          result_json: Json | null
+          run_at: string
+          status: Database["public"]["Enums"]["post_status"] | null
+          target_id: string
+          target_type: Database["public"]["Enums"]["post_target_type"]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          link_url?: string | null
+          media_url?: string | null
+          message?: string | null
+          published_at?: string | null
+          result_json?: Json | null
+          run_at: string
+          status?: Database["public"]["Enums"]["post_status"] | null
+          target_id: string
+          target_type: Database["public"]["Enums"]["post_target_type"]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          link_url?: string | null
+          media_url?: string | null
+          message?: string | null
+          published_at?: string | null
+          result_json?: Json | null
+          run_at?: string
+          status?: Database["public"]["Enums"]["post_status"] | null
+          target_id?: string
+          target_type?: Database["public"]["Enums"]["post_target_type"]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       schedules: {
         Row: {
@@ -333,6 +544,10 @@ export type Database = {
         Args: { connection_id: string }
         Returns: string
       }
+      get_decrypted_page_access_token: {
+        Args: { p_page_id: string }
+        Returns: string
+      }
       get_decrypted_page_token: {
         Args: { connection_id: string }
         Returns: string
@@ -363,6 +578,9 @@ export type Database = {
     }
     Enums: {
       app_role: "owner" | "staff"
+      comment_status: "open" | "replied" | "hidden" | "deleted"
+      post_status: "queued" | "published" | "failed"
+      post_target_type: "facebook_page" | "instagram"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -491,6 +709,9 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "staff"],
+      comment_status: ["open", "replied", "hidden", "deleted"],
+      post_status: ["queued", "published", "failed"],
+      post_target_type: ["facebook_page", "instagram"],
     },
   },
 } as const
