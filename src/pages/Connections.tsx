@@ -116,8 +116,12 @@ export default function Connections() {
     
     if (result.authorize_url) {
       console.log('Redirecting to:', result.authorize_url);
-      // Redirect to Facebook OAuth
-      window.location.href = result.authorize_url;
+      // Break out of iframe and redirect to Facebook OAuth
+      if (window.top) {
+        window.top.location.href = result.authorize_url;
+      } else {
+        window.location.href = result.authorize_url;
+      }
     } else {
       console.error('No authorization URL received:', result.error);
       toast.error(result.error || 'Failed to initiate Facebook connection');
