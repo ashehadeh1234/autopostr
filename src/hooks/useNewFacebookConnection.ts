@@ -39,7 +39,8 @@ export const useNewFacebookConnection = () => {
     logger.info('Initiating Facebook connection');
 
     try {
-      const { data, error } = await supabase.functions.invoke('facebook-connect/authorize', {
+      const { data, error } = await supabase.functions.invoke('facebook-connect', {
+        body: { route: 'authorize' },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
@@ -108,8 +109,9 @@ export const useNewFacebookConnection = () => {
     });
 
     try {
-      const { data, error } = await supabase.functions.invoke('facebook-connect/save-connections', {
+      const { data, error } = await supabase.functions.invoke('facebook-connect', {
         body: {
+          route: 'save-connections',
           pages,
           ig_accounts: igAccounts
         },

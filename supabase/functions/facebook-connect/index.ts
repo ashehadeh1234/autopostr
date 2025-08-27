@@ -41,9 +41,26 @@ Deno.serve(async (req) => {
     console.log('URL:', req.url);
 
     const url = new URL(req.url);
-    const route = url.pathname.split("/").slice(-1)[0]; // "authorize" | "callback"
+    let route = '';
     
-    console.log('Route:', route);
+    // Check if it's a direct path-based route (callback)
+    if (url.pathname.includes('/callback')) {
+      route = 'callback';
+    } else if (req.method === 'POST') {
+      // For POST requests, get route from body
+      try {
+        const body = await req.json();
+        route = body.route || '';
+        console.log('Route from body:', route);
+      } catch (e) {
+        console.log('No JSON body, defaulting route');
+        route = 'authorize';
+      }
+    } else {
+      route = 'authorize';
+    }
+    
+    console.log('Determined route:', route);
 
     const APP_ID = Deno.env.get("FACEBOOK_APP_ID");
     const APP_SECRET = Deno.env.get("FACEBOOK_APP_SECRET");
@@ -217,7 +234,14 @@ Deno.serve(async (req) => {
       
       const { error } = await supabase
         .from("social_connections")
-        .upsert(rows, { onConflict: "user_id,provider,external_id" });
+        .upsert(rows.map(row => ({
+          ...row,
+          platform: row.provider,
+          platform_user_id: row.external_id,
+          platform_username: row.name,
+          access_token_encrypted: row.access_token,
+          is_active: true
+        })), { onConflict: "user_id,platform,platform_user_id" });
         
       if (error) {
         console.error('Database error:', error);
