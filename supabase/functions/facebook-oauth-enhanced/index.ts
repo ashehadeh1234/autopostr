@@ -317,23 +317,32 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     const user = await validateUser(supabase, authHeader);
     
-    // Parse request body from supabase.functions.invoke()
+    // Parse request body safely
     let requestBody = null;
     let action = null;
     
     try {
-      // supabase.functions.invoke() sends JSON directly
-      requestBody = await req.json();
-      action = requestBody?.action;
-      console.log('Parsed request body:', requestBody);
-      console.log('Action:', action);
-    } catch (parseError) {
-      console.error('Failed to parse request body:', parseError);
+      const bodyText = await req.text();
+      console.log('Raw request body:', bodyText);
       
-      // Fallback to URL params for GET requests
+      if (bodyText && bodyText.trim()) {
+        requestBody = JSON.parse(bodyText);
+        action = requestBody.action;
+      }
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid JSON in request body' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // Fallback to URL params if no action in body
+    if (!action) {
       const url = new URL(req.url);
       action = url.searchParams.get('action');
-      console.log('Fallback action from URL:', action);
     }
     
     console.log('Request body:', requestBody);
