@@ -35,16 +35,6 @@ export const useConnections = () => {
         throw socialError;
       }
 
-      // Fetch Facebook pages
-      const { data: fbPagesData, error: fbError } = await supabase
-        .from('fb_pages')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (fbError) {
-        logger.error('Error loading Facebook pages', { error: fbError });
-        throw fbError;
-      }
 
       setSocialConnections(socialConnectionsData || []);
       
@@ -52,25 +42,17 @@ export const useConnections = () => {
       const updatedConnections = PLATFORMS.map(platform => {
         const socialConnection = socialConnectionsData?.find(sc => sc.platform === platform.id);
         const isConnected = !!socialConnection;
-        
-        // For Facebook, add pages info
-        let pages: any[] = [];
-        if (platform.id === 'facebook' && isConnected) {
-          pages = fbPagesData || [];
-        }
 
         return {
           ...platform,
           connected: isConnected,
-          enabled: socialConnection?.is_active || false,
-          pages: pages.length > 0 ? pages : undefined
+          enabled: socialConnection?.is_active || false
         };
       });
 
       setConnections(updatedConnections);
       logger.info('Social connections loaded successfully', { 
-        connectionsCount: socialConnectionsData?.length || 0,
-        fbPagesCount: fbPagesData?.length || 0
+        connectionsCount: socialConnectionsData?.length || 0
       });
     } catch (error) {
       logger.error('Failed to load social connections', { error });
@@ -83,64 +65,6 @@ export const useConnections = () => {
     }
   };
 
-  // Disconnect a platform
-  const handleDisconnect = async (connectionId: string) => {
-    const connection = connections.find(c => c.id === connectionId);
-    if (!connection || !user) return { success: false, error: 'Connection not found' };
-
-    try {
-      logger.info('Disconnecting platform', { platform: connection.platform, userId: user.id });
-
-      if (connection.platform === 'facebook') {
-        // Deactivate social connections
-        const { error: socialError } = await supabase
-          .from('social_connections')
-          .update({ is_active: false })
-          .eq('user_id', user.id)
-          .eq('platform', 'facebook');
-
-        if (socialError) throw socialError;
-
-        // Get Facebook pages first, then delete Instagram accounts
-        const { data: fbPages } = await supabase
-          .from('fb_pages')
-          .select('page_id')
-          .eq('user_id', user.id);
-
-        if (fbPages && fbPages.length > 0) {
-          const pageIds = fbPages.map(p => p.page_id);
-          const { error: igError } = await supabase
-            .from('ig_accounts')
-            .delete()
-            .in('page_id', pageIds);
-
-          if (igError) throw igError;
-        }
-
-        // Delete Facebook pages
-        const { error: pagesError } = await supabase
-          .from('fb_pages')
-          .delete()
-          .eq('user_id', user.id);
-
-        if (pagesError) throw pagesError;
-
-        // Delete ad accounts
-        const { error: adError } = await supabase
-          .from('ad_accounts')
-          .update({ status: 'INACTIVE' })
-          .eq('user_id', user.id);
-
-        if (adError) throw adError;
-      }
-
-      await loadSocialConnections();
-      return { success: true, message: `${connection.name} disconnected successfully` };
-    } catch (error) {
-      logger.error('Failed to disconnect platform', { error, platform: connection.platform });
-      return { success: false, error: 'Failed to disconnect. Please try again.' };
-    }
-  };
 
   // Toggle enabled state for a connection
   const handleToggleEnabled = async (connectionId: string) => {
@@ -198,7 +122,6 @@ export const useConnections = () => {
     isLoading,
     connectionErrors,
     loadSocialConnections,
-    handleDisconnect,
     handleToggleEnabled,
     clearConnectionError,
     setConnectionError
