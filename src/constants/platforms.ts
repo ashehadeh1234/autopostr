@@ -8,7 +8,7 @@
  * @version 2.0 - Extracted from components
  */
 
-import { Twitter, Instagram, Linkedin, Youtube } from "lucide-react";
+import { Twitter, Instagram, Linkedin, Youtube, Facebook } from "lucide-react";
 
 /**
  * Represents a social media platform connection configuration.
@@ -74,6 +74,16 @@ export interface SocialConnection {
  * 4. Update database schema if needed
  */
 export const PLATFORMS: Connection[] = [
+  {
+    id: "facebook",
+    name: "Facebook",
+    platform: "facebook",
+    icon: Facebook,
+    connected: false,
+    enabled: true,
+    description: "Connect your Facebook account and pages",
+    color: "hsl(221, 83%, 53%)"
+  },
   {
     id: "twitter",
     name: "Twitter / X",
