@@ -20,44 +20,6 @@ export default function Connections() {
     loadSocialConnections
   } = useConnections();
 
-  // Listen for auth changes and update connections when user logs in with OAuth
-  useEffect(() => {
-    const handleAuthChange = async (event: string, session: any) => {
-      if (event === 'SIGNED_IN' && session?.user?.app_metadata?.provider === 'facebook') {
-        // Create social connection record for Facebook
-        try {
-          const { error } = await supabase
-            .from('social_connections')
-            .upsert({
-              user_id: session.user.id,
-              platform: 'facebook',
-              platform_user_id: session.user.user_metadata?.sub || session.user.id,
-              platform_username: session.user.user_metadata?.name || session.user.email,
-              is_active: true,
-              permissions: ['public_profile', 'email']
-            }, {
-              onConflict: 'user_id,platform'
-            });
-
-          if (error) {
-            console.error('Error creating Facebook connection:', error);
-          } else {
-            toast({
-              title: "Facebook Connected!",
-              description: "Your Facebook account has been connected successfully.",
-            });
-            // Reload connections to reflect the new status
-            await loadSocialConnections();
-          }
-        } catch (error) {
-          console.error('Error handling Facebook connection:', error);
-        }
-      }
-    };
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
-    return () => subscription.unsubscribe();
-  }, [toast, loadSocialConnections]);
 
   const handleConnect = async (connectionId: string) => {
     const connection = connections.find(c => c.id === connectionId);
@@ -67,22 +29,22 @@ export default function Connections() {
       try {
         setConnectingPlatform('facebook');
         
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: 'facebook',
-          options: {
-            scopes: 'public_profile,email',
-            redirectTo: `${window.location.origin}/app/connections`
-          }
-        });
-
-        if (error) {
-          console.error('Facebook OAuth error:', error);
+        // Get Facebook authorization URL
+        const { data, error } = await supabase.functions.invoke('facebook-authorize');
+        
+        if (error || !data?.authUrl) {
+          console.error('Facebook authorize error:', error);
           toast({
             title: "Connection Failed",
-            description: "Failed to connect to Facebook. Please try again.",
+            description: "Failed to initialize Facebook connection. Please try again.",
             variant: "destructive"
           });
+          return;
         }
+
+        // Redirect to Facebook OAuth
+        window.location.href = data.authUrl;
+        
       } catch (error) {
         console.error('Facebook connection error:', error);
         toast({
@@ -90,7 +52,6 @@ export default function Connections() {
           description: "An error occurred while connecting to Facebook.",
           variant: "destructive"
         });
-      } finally {
         setConnectingPlatform(null);
       }
     } else {
@@ -100,6 +61,71 @@ export default function Connections() {
       });
     }
   };
+
+  // Handle Facebook callback
+  useEffect(() => {
+    const handleFacebookCallback = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const isCallback = urlParams.get('fb_callback');
+      const code = urlParams.get('code');
+      const error = urlParams.get('error');
+
+      if (isCallback) {
+        if (error) {
+          toast({
+            title: "Connection Failed",
+            description: "Facebook connection was cancelled or failed.",
+            variant: "destructive"
+          });
+          // Clean up URL
+          window.history.replaceState({}, '', '/app/connections');
+          return;
+        }
+
+        if (code && session?.access_token) {
+          try {
+            setConnectingPlatform('facebook');
+            
+            const { data, error } = await supabase.functions.invoke('facebook-callback', {
+              body: { code },
+              headers: {
+                Authorization: `Bearer ${session.access_token}`
+              }
+            });
+
+            if (error || !data?.success) {
+              console.error('Facebook callback error:', error);
+              toast({
+                title: "Connection Failed",
+                description: data?.error || "Failed to complete Facebook connection.",
+                variant: "destructive"
+              });
+            } else {
+              toast({
+                title: "Facebook Connected!",
+                description: `Successfully connected to Facebook${data.pages ? ` with ${data.pages} page(s)` : ''}.`,
+              });
+              // Reload connections
+              await loadSocialConnections();
+            }
+          } catch (error) {
+            console.error('Facebook callback error:', error);
+            toast({
+              title: "Connection Failed",
+              description: "An error occurred while processing Facebook connection.",
+              variant: "destructive"
+            });
+          } finally {
+            setConnectingPlatform(null);
+            // Clean up URL
+            window.history.replaceState({}, '', '/app/connections');
+          }
+        }
+      }
+    };
+
+    handleFacebookCallback();
+  }, [session, toast, loadSocialConnections]);
 
 
   if (isLoading) {

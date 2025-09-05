@@ -33,6 +33,12 @@ port = 54325
 smtp_port = 54326
 pop3_port = 54327
 
+[functions.facebook-authorize]
+verify_jwt = false
+
+[functions.facebook-callback]
+verify_jwt = true
+
 [functions.facebook-oauth]
 verify_jwt = false
 
@@ -50,6 +56,15 @@ verify_jwt = true
 
 [functions.get-random-media]
 verify_jwt = false
+
+[functions.get-active-schedules]
+verify_jwt = true
+
+[functions.update-schedule-execution]
+verify_jwt = true
+
+[functions.speech-to-text]
+verify_jwt = true
 
 [storage]
 enabled = true
