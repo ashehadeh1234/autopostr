@@ -62,70 +62,25 @@ export default function Connections() {
     }
   };
 
-  // Handle Facebook callback
+  // Handle Facebook callback success
   useEffect(() => {
-    const handleFacebookCallback = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const isCallback = urlParams.get('fb_callback');
-      const code = urlParams.get('code');
-      const error = urlParams.get('error');
+    const urlParams = new URLSearchParams(window.location.search);
+    const isCallback = urlParams.get('fb_callback');
+    const pages = urlParams.get('pages');
 
-      if (isCallback) {
-        if (error) {
-          toast({
-            title: "Connection Failed",
-            description: "Facebook connection was cancelled or failed.",
-            variant: "destructive"
-          });
-          // Clean up URL
-          window.history.replaceState({}, '', '/app/connections');
-          return;
-        }
-
-        if (code && session?.access_token) {
-          try {
-            setConnectingPlatform('facebook');
-            
-            const { data, error } = await supabase.functions.invoke('facebook-callback', {
-              body: { code },
-              headers: {
-                Authorization: `Bearer ${session.access_token}`
-              }
-            });
-
-            if (error || !data?.success) {
-              console.error('Facebook callback error:', error);
-              toast({
-                title: "Connection Failed",
-                description: data?.error || "Failed to complete Facebook connection.",
-                variant: "destructive"
-              });
-            } else {
-              toast({
-                title: "Facebook Connected!",
-                description: `Successfully connected to Facebook${data.pages ? ` with ${data.pages} page(s)` : ''}.`,
-              });
-              // Reload connections
-              await loadSocialConnections();
-            }
-          } catch (error) {
-            console.error('Facebook callback error:', error);
-            toast({
-              title: "Connection Failed",
-              description: "An error occurred while processing Facebook connection.",
-              variant: "destructive"
-            });
-          } finally {
-            setConnectingPlatform(null);
-            // Clean up URL
-            window.history.replaceState({}, '', '/app/connections');
-          }
-        }
-      }
-    };
-
-    handleFacebookCallback();
-  }, [session, toast, loadSocialConnections]);
+    if (isCallback === 'success') {
+      toast({
+        title: "Facebook Connected!",
+        description: `Successfully connected to Facebook${pages ? ` with ${pages} page(s)` : ''}.`,
+      });
+      
+      // Reload connections to reflect the new connection
+      loadSocialConnections();
+      
+      // Clean up URL
+      window.history.replaceState({}, '', '/app/connections');
+    }
+  }, [toast, loadSocialConnections]);
 
 
   if (isLoading) {

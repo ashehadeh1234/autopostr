@@ -17,7 +17,7 @@ serve(async (req) => {
       throw new Error('META_APP_ID not configured');
     }
 
-    const redirectUri = encodeURIComponent(`${req.headers.get('origin')}/app/connections?fb_callback=true`);
+    const redirectUri = encodeURIComponent(`${req.headers.get('origin')}/api/facebook/callback`);
 
     // Facebook Pages permissions (includes Instagram basic access via connected pages)
     const scope = [

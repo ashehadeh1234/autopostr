@@ -43,7 +43,7 @@ serve(async (req) => {
 
     const appId = Deno.env.get('META_APP_ID');
     const appSecret = Deno.env.get('META_APP_SECRET');
-    const redirectUri = `${req.headers.get('origin')}/app/connections?fb_callback=true`;
+    const redirectUri = `${req.headers.get('origin')}/api/facebook/callback`;
 
     if (!appId || !appSecret) {
       throw new Error('Facebook app credentials not configured');
@@ -157,12 +157,15 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: 'Facebook connected successfully',
-      pages: pagesJson.data?.length || 0
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Redirect back to connections page with success indicator
+    const successUrl = `${req.headers.get('origin')}/app/connections?fb_callback=success&pages=${pagesJson.data?.length || 0}`;
+    
+    return new Response(null, {
+      status: 302,
+      headers: {
+        ...corsHeaders,
+        'Location': successUrl
+      }
     });
 
   } catch (error) {
